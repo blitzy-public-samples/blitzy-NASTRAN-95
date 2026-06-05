@@ -54,12 +54,12 @@ C     NO global state: IDIAG, ICODE, NVAL and MSG all arrive as
 C     arguments and LOUT is a local PARAMETER (AAP 0.5.3 zero-new-
 C     COMMON; 0.7.2).  This is verifiable by inspection.
 C
-C     DIAGLOG DOES NOT CALL MESAGE.  Legacy MESAGE (mis/mesage.f) writes
+C     DIAGLOG DOES NOT CALL MESAGE.  MESAGE (mis/mesage.f) writes
 C     to NOUT (/SYSTEM/ cell 2), not unit 3, so routing normal logging
 C     through it would violate "unit 3 only".  DIAGLOG is a pure
 C     unit-3 writer.
 C
-C     FATAL CONVENTION (performed by the DETECTING routine, e.g. DISPTBL
+C     FATAL CONVENTION (by the DETECTING routine, e.g. DISPTBL
 C     for an unmapped MODX), NOT by DIAGLOG:
 C        CALL MESAGE (-ICODE, IPARM, NAME)   ! ICODE in 9001..9999
 C     where MESAGE has signature MESAGE(NO,PARM,NAME), INTEGER PARM,
@@ -67,7 +67,7 @@ C     NAME(2), and a negative NO terminates the run (see mis/mesage.f;
 C     cf. CALL MESAGE(-61,0,0) at bin/nastrn.f L39).
 C
 C     DESIGN DECISION / MAINTAINER FLAG:
-C         IDIAG is PASSED AS AN ARGUMENT (not stored in a COMMON block).
+C         IDIAG is PASSED AS AN ARGUMENT (not stored in a COMMON).
 C         This is REQUIRED to honor "zero new COMMON / no literal
 C         COMMON/... in modern/*.f except via an included header" (AAP
 C         0.5.3, 0.7.2): IDIAG is not present in any of the nine *.COM
@@ -76,7 +76,7 @@ C         the AAP phrase "IDIAG is set once by DIAGCTL" is realized as:
 C         DIAGCTL is the single authority that computes the env->IDIAG
 C         mapping; callers obtain IDIAG from it and pass it down (here,
 C         into DIAGLOG).
-C         FLAG: if a true process-wide single-evaluation global is later
+C         FLAG: if a process-wide single-evaluation global is later
 C         desired, it can be added as a one-line /MODDIAG/ block via a
 C         dedicated modern INCLUDE header -- DEFERRED here to honor
 C         "zero new COMMON" and the "exactly two .f files" scope of
@@ -120,10 +120,10 @@ C     overhead when diagnostics are disabled (IDIAG = 0 => APR.95).
 C
 C     DEFENSIVE BAND CHECK -- a code outside 9001-9999 violates the
 C     contract.  Tag the offending value on unit 3 (only) AND remap the
-C     emitted code to the in-band sentinel 9999 so the core record below
+C     emitted code to the in-band sentinel 9999 so the record below
 C     can NEVER carry an out-of-band diagnostic code (Binding Rule R5:
 C     codes confined to 9001-9999).  Do NOT abort and do NOT escape to
-C     any other unit.  ICODE (an INPUT argument) is left unmodified; the
+C     any other unit.  ICODE (an INPUT argument) is unchanged; the
 C     local JCODE carries the in-band code actually written.
       JCODE = ICODE
       IF (ICODE .LT. 9001 .OR. ICODE .GT. 9999) THEN

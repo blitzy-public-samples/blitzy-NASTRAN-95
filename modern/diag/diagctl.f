@@ -44,7 +44,7 @@ C         (AAP 0.6.4).
 C
 C     NO GLOBAL STATE / NO I/O:
 C         This routine touches NO global state.  It contains NO COMMON,
-C         NO EQUIVALENCE and NO INCLUDE; it reads the environment into a
+C         NO EQUIVALENCE, NO INCLUDE; it reads the environment into a
 C         local CHARACTER*80 receiver and writes only the IDIAG output
 C         argument (AAP 0.5.3 zero-new-COMMON; 0.7.2).  It performs NO
 C         WRITE/PRINT and opens NO unit -- diagnostic output is the job
@@ -52,8 +52,8 @@ C         of diaglog.f on logical unit 3.
 C
 C     DEFAULT SAFETY & ROLLBACK:
 C         With no toggle set IDIAG = 0, every guarded modern/ routine
-C         short-circuits, and the run is bit-identical to the unmodified
-C         APR.95 solver.  Rollback is a pure configuration change (unset
+C         short-circuits; the run is bit-identical to the unmodified
+C         APR.95 solver.  Rollback is a configuration change (unset
 C         or flip a NASTRAN_* variable) with NO recompilation (AAP
 C         0.7.4).  Operators set these toggles in the bin/nastran csh
 C         wrapper's inline env list -- the "env NAME=val ... " block
@@ -79,9 +79,9 @@ C         DIAGCTL is the single authority that computes the env->IDIAG
 C         mapping; each subsystem obtains IDIAG by calling DIAGCTL once
 C         at its entry (or receives it by argument) and threads it to
 C         its guarded routines.
-C         FLAG: if a true process-wide single-evaluation global is later
-C         desired, add a one-line /MODDIAG/ block via a dedicated modern
-C         INCLUDE header -- DEFERRED here to honor "zero new COMMON" and
+C         FLAG: if a process-wide single-evaluation global is later
+C         desired, add a one-line /MODDIAG/ block via a modern
+C         INCLUDE header -- DEFERRED to honor "zero new COMMON" and
 C         the "exactly two .f files" scope of modern/diag/.
 C
 C     REFERENCE PROVENANCE:
