@@ -1,0 +1,42 @@
+# tstval.ref - Expected state-consistency result for PROGRAM TSTVAL
+#
+# Routine under test: modern/state/stateval.f (state-consistency
+#   validator over the existing nine *.COM INCLUDE headers; zero new
+#   COMMON). Setup uses modern/state/stateacc.f accessors.
+# DELIVERABLE - consulted/kept-in-sync in Solaris; NOT executed
+#   by Blitzy.
+#
+# Contract: tstval.f establishes a CONSISTENT state via the SET
+#   accessors, then  CALL STVAL(IST)  and asserts  IST .EQ. 0
+#   (consistent => status 0, zero divergences). Happy path only.
+#
+# Binding expectation:
+EXPECT_STATUS 0
+#
+# Representative consistent-state SEED values (reconcile with the
+# invariant in modern/state/stateval.f; reached ONLY via INCLUDE of the
+# *.COM headers or via accessor CALLs - never a literal COMMON):
+# /DSIO/  (mds/DSIOF.COM)
+SEED_DSIO_LCW 1024
+SEED_DSIO_LWORDS 2048
+SEED_DSIO_NWORDS 2048
+SEED_DSIO_NBUFF 8
+# /DBM/   (mds/DSIOF.COM)
+SEED_DBM_IDBLEN 4096
+SEED_DBM_NBLOCK 64
+SEED_DBM_MAXBLK 64
+# /SYSTEM/ (mis/SMCOMX.COM: ISYSBF,NOUT,DUM1(37),NBPW,DUM2(14),ISPREC)
+SEED_SYS_NOUT 6
+SEED_SYS_NBPW 32
+#
+# Notes:
+#  - Seeds are coherent, in-range, non-degenerate values chosen so the
+#    validator's consistency relation holds (e.g. matched capacities
+#    NWORDS<=LWORDS, NBLOCK<=MAXBLK); reconcile exact relation with
+#    stateval.f. Avoid zeros that could read as "uninitialized".
+#  - IST is poisoned to a non-zero value in the driver BEFORE the call
+#    so a no-op cannot accidentally satisfy EXPECT_STATUS 0.
+#  - Header-conflict caution: never mix /DSNAME/ (NASNAMES vs DSIOF) or
+#    /ZZZZZZ/ (XNSTRN vs ZZZZZZ) layouts in one program unit.
+#
+# EXPECT_VERDICT PASS: TSTVAL
