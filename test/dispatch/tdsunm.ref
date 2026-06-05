@@ -1,0 +1,30 @@
+# tdsunm.ref - Expected unmapped->fatal facts for PROGRAM TDSUNM
+#
+# Source of truth: FROZEN mis/xsem00.f (read-only) and mis/mesage.f.
+# An unmapped or out-of-range MODX must route to a FATAL MESAGE.
+# Per AAP 0.7.2, NEW message codes must lie in the 9001-9999 band.
+# The legacy ladder routes such codes to GO TO 940 -> MESAGE(-37,...)
+# (fatal, NO<0); the modern dispatcher reproduces this with a
+# 9001-9999 code.
+#
+# Key/value lines (machine-readable). The driver tdsunm.f hardcodes
+# these code sets and the band, and verifies via a local MESAGE
+# capture stub.
+#
+OUT_OF_RANGE 0 -1 218
+INRANGE_FATAL 1 2 4
+BAND_LOW 9001
+BAND_HIGH 9999
+RESERVED_SAMPLE 25 36
+#
+# Notes:
+#  - mis/mesage.f: SUBROUTINE MESAGE (NO,PARM,NAME);
+#    INTEGER PARM,NAME(2); NO .LE. 0 is the fatal path. Driver
+#    asserts NO .LT. 0 AND IABS(NO) in [9001,9999].
+#  - OUT_OF_RANGE (0,-1,218): MODX <= 0 or >= 218 (legacy GO TO 940).
+#  - INRANGE_FATAL (1,2,4): in-range slots that fall to GO TO 940
+#    (block 1: (940,940,2003,940,...)).
+#  - RESERVED no-op slots are valid (NOT fatal); negative control.
+#    The full 21-code reserved set is catalogued in tdsmap.ref.
+#
+# EXPECT_VERDICT PASS: TDSUNM
