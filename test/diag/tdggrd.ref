@@ -1,0 +1,72 @@
+#=====================================================================
+# test/diag/tdggrd.ref
+#
+# Reference-value data for PROGRAM TDGGRD (test/diag/tdggrd.f).
+#
+# Routine under test : modern/diag/diaglog.f  (guard clause)
+# Reference source   : bin/nastrn.f (LOUT=3); mis/mesage.f (MESAGE)
+#
+# DELIVERABLE -- used in Solaris; not executed by Blitzy.
+# This file is reference DATA only.  It is NOT a *.f source and is NOT
+# matched by the bin/linknas "*.f" build glob, so it is never compiled
+# or linked.  It is read/inspected by the unit driver and the test
+# harness in the developer's Solaris environment (csh + Sun f77).
+#
+# Expected verdict   : PASS: TDGGRD
+#=====================================================================
+#
+# PURPOSE
+#   TDGGRD verifies the GUARD-CLAUSE ZERO-OVERHEAD property of the
+#   modern diagnostic layer: every routine in modern/diag/ begins
+#   with the guard clause
+#
+#       IF (IDIAG .EQ. 0) RETURN
+#
+#   as its FIRST executable statement.  When diagnostics are disabled
+#   (IDIAG = 0) the routine returns immediately and performs no I/O,
+#   so it incurs no measurable cost.  The only portable behavioral
+#   proof of this property is "disabled => zero output": a call to
+#   modern/diag/diaglog.f while IDIAG = 0 must write ZERO records to
+#   logical unit 3 (LOUT).  This reference encodes that expectation.
+#
+# RATIONALE (evidence from the AAP and the reference sources)
+#   * The guard clause as the first executable statement is a HARD
+#     success criterion of the refactor (AAP 0.6.4, 0.7.2, 0.7.3):
+#     every diagnostic routine begins with IF (IDIAG .EQ. 0) RETURN
+#     as its first executable statement, verifiable by inspection.
+#   * IDIAG is the single diagnostic-enable state.  It is set once by
+#     modern/diag/diagctl.f from the NASTRAN_* environment toggles;
+#     when those toggles are unset IDIAG = 0, the layer is OFF, and
+#     behavior is exactly APR.95 (default safety, AAP 0.7.4).
+#   * bin/nastrn.f makes logical unit 3 the NASTRAN log: after the
+#     bootstrap CALL DBMINT it sets LOUT = 3 and opens unit 3
+#     (OPEN(3,FILE=DSNAMES(3),STATUS='UNKNOWN')).  Unit 3 is thus the
+#     only sink a modern diagnostic write could reach.
+#   * mis/mesage.f shows the LEGACY MESAGE writer targets NOUT
+#     (COMMON /SYSTEM/ IBUF,NOUT,... ; WRITE(NOUT,...)), i.e. the
+#     legacy print stream, NOT unit 3.  The guard short-circuits
+#     before any write, so when disabled nothing is emitted to unit 3
+#     and nothing is added to any other stream.
+#
+# BINDING EXPECTATION
+#   With diagnostics DISABLED (IDIAG = 0), a call to DIAGLOG with any
+#   in-band MESAGE code (9001-9999) writes EXACTLY ZERO records to
+#   logical unit 3 (LOUT).  The guard clause IF (IDIAG .EQ. 0) RETURN
+#   short-circuits the routine before any I/O is performed, on unit 3
+#   or on any other unit.
+#
+# CONSISTENCY
+#   DISABLED_IDIAG and EXPECT_UNIT3_RECORDS below MUST match the
+#   constants asserted in test/diag/tdggrd.f (disabled => zero unit-3
+#   records) and the guard-clause implementation in
+#   modern/diag/diaglog.f (IF (IDIAG .EQ. 0) RETURN as the first
+#   executable statement).  If the guard-clause contract ever changes,
+#   update this reference and the driver together.
+#
+#---------------------------------------------------------------------
+# Machine-readable key/value lines (whitespace separated, one per
+# line).  These are the values the driver and harness parse.
+#---------------------------------------------------------------------
+DISABLED_IDIAG 0
+EXPECT_UNIT3_RECORDS 0
+EXPECT_VERDICT PASS: TDGGRD
