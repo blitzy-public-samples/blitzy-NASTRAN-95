@@ -1,0 +1,47 @@
+# tstacc.ref - Expected get/set round-trip values for PROGRAM TSTACC
+#
+# Routine under test: modern/state/stateacc.f (accessor/facade get/set
+#   over the existing nine *.COM INCLUDE headers; zero new COMMON).
+# DELIVERABLE - consulted/kept-in-sync in Solaris; NOT executed
+#   by Blitzy.
+#
+# Contract: for each accessor pair, the driver tstacc.f does
+#   CALL set(<VALUE>) ; CALL get(OUT) ; assert OUT .EQ. <VALUE>
+# (a value written via SET is read back identically via GET). The
+# sentinels below are arbitrary, distinct test values; they MUST equal
+# the constants hardcoded in tstacc.f.
+#
+# Each data line:  RT_<BLOCK>_<VAR>  <integer-sentinel>
+# (<BLOCK>/<VAR> name the COMMON block and variable the accessor wraps,
+#  reached ONLY via INCLUDE of the *.COM header - never a literal
+#  COMMON - mirroring the modern/state zero-re-declaration rule.)
+#
+# --- REPRESENTATIVE coverage (reconcile with modern/state/stateacc.f)
+# /DSIO/  (mds/DSIOF.COM)
+RT_DSIO_LCW 12345
+RT_DSIO_LWORDS -32109
+RT_DSIO_NWORDS 77001
+RT_DSIO_MAXDSN 4242
+# /DBM/   (mds/DSIOF.COM)
+RT_DBM_IDBLEN 424242
+RT_DBM_LENOPC -55055
+RT_DBM_NBLOCK 60601
+# /SYSTEM/ (mis/SMCOMX.COM: ISYSBF,NOUT,DUM1(37),NBPW,DUM2(14),ISPREC)
+RT_SYS_NOUT 31337
+RT_SYS_NBPW 909090
+# /SMCOMX/ (mis/SMCOMX.COM)
+RT_SMCOMX_NCOL -70701
+#
+# Notes:
+#  - Sentinels are arbitrary distinct integers chosen to expose any
+#    cross-wiring; a pure store/fetch round-trip returns them exactly,
+#    so the driver asserts exact .EQ. equality (NOT a tolerance).
+#  - If stateacc.f wraps a CHARACTER cell (e.g. /DOSNAM/ *72 or
+#    /DSNAME/ DSNAMES(89)*80 in NASNAMES.COM), add a line with a short
+#    quoted-free token sentinel and have the driver compare strings.
+#  - Header-conflict caution: /DSNAME/ differs between NASNAMES.COM
+#    (DSNAMES) and DSIOF.COM (MDSNAM); /ZZZZZZ/ differs between
+#    XNSTRN.COM (IBASE) and ZZZZZZ.COM (MEM). Never verify both layouts
+#    in one program unit.
+#
+# EXPECT_VERDICT PASS: TSTACC
