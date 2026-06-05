@@ -1,0 +1,61 @@
+#=====================================================================
+# test/diag/tdgbnd.ref
+#
+# Reference-value data for PROGRAM TDGBND (test/diag/tdgbnd.f).
+#
+# Routine under test : modern/diag/diaglog.f
+# Reference source   : um/MSSG.TXT  (NASTRAN message registry)
+#
+# DELIVERABLE -- used in Solaris; not executed by Blitzy.
+# This file is reference DATA only.  It is NOT a *.f source and is NOT
+# matched by the bin/linknas "*.f" build glob, so it is never compiled
+# or linked.  It is read/inspected by the unit driver and the test
+# harness in the developer's Solaris environment (csh + Sun f77).
+#
+# Expected verdict   : PASS: TDGBND
+#=====================================================================
+#
+# PURPOSE
+#   TDGBND verifies the message-code band reserved for NEW
+#   modernization diagnostics emitted through MESAGE by
+#   modern/diag/diaglog.f.  The hard constraint (AAP 0.7.2) is:
+#   new MESAGE codes live ONLY in the band 9001-9999.  This
+#   reference encodes the band bounds, the representative in-band
+#   codes the driver exercises, and the registry evidence that
+#   justifies the band being free.
+#
+# RATIONALE (evidence from um/MSSG.TXT)
+#   * um/MSSG.TXT registers diagnostic message ids only up to 8015,
+#     which is the highest id present in the registry.
+#   * A full scan of the registry finds NO ids in the 9001-9999
+#     band, so that band is reserved/free for new modernization
+#     diagnostics.
+#   * um/MSSG.TXT is READ-ONLY for this refactor: new codes are
+#     EMITTED at run time by modern/diag/ routines, and are never
+#     registered by editing the registry file.
+#
+# BAND DEFINITION AND REPRESENTATIVE CODES
+#   band low  boundary = 9001   (first new-diagnostics code)
+#   band high boundary = 9999   (last  new-diagnostics code)
+#   guard: low > 8015 (no collision with highest legacy id 8015)
+#   representative in-band codes exercised by the driver:
+#     9001  ->  low boundary
+#     9500  ->  mid band
+#     9999  ->  high boundary
+#
+# CONSISTENCY
+#   BAND_LOW / BAND_HIGH and SAMPLE_CODES below MUST match the
+#   constants asserted in test/diag/tdgbnd.f (ILOW=9001,
+#   IHIGH=9999).  LEGACY_MAX_ID reflects the current um/MSSG.TXT
+#   maximum; if the registry ever changes, update this reference
+#   and the driver together.
+#
+#---------------------------------------------------------------------
+# Machine-readable key/value lines (whitespace separated, one per
+# line).  These are the values the driver and harness parse.
+#---------------------------------------------------------------------
+BAND_LOW 9001
+BAND_HIGH 9999
+LEGACY_MAX_ID 8015
+SAMPLE_CODES 9001 9500 9999
+EXPECT_VERDICT PASS: TDGBND
