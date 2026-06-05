@@ -44,8 +44,10 @@ C     unassigned in um/MSSG.TXT (highest registered id = 8015; the
 C     registry ends at line 6042 with no id in 9001-9999).  The file
 C     um/MSSG.TXT is NOT edited; new codes are EMITTED here, never
 C     registered.  A defensive band check (label 110) tags any
-C     out-of-band code on unit 3 without aborting and without escaping
-C     to any other unit.
+C     out-of-band code on unit 3 AND remaps the emitted code to the
+C     in-band sentinel 9999, so an out-of-band value is NEVER written
+C     as a diagnostic code (Binding Rule R5); it never aborts and never
+C     escapes to any other unit.
 C
 C     NO COMMON / NO EQUIVALENCE / NO INCLUDE -- this routine touches
 C     NO global state: IDIAG, ICODE, NVAL and MSG all arrive as
@@ -110,22 +112,30 @@ C=====================================================================
       CHARACTER*(*) MSG
       INTEGER       LOUT
       PARAMETER   ( LOUT = 3 )
+      INTEGER       JCODE
 C
 C     GUARD CLAUSE -- FIRST EXECUTABLE STATEMENT (MANDATORY).  Zero
 C     overhead when diagnostics are disabled (IDIAG = 0 => APR.95).
       IF (IDIAG .EQ. 0) RETURN
 C
 C     DEFENSIVE BAND CHECK -- a code outside 9001-9999 violates the
-C     contract; tag it on unit 3 (only) and continue.  Do NOT abort
-C     and do NOT escape to any other unit.
+C     contract.  Tag the offending value on unit 3 (only) AND remap the
+C     emitted code to the in-band sentinel 9999 so the core record below
+C     can NEVER carry an out-of-band diagnostic code (Binding Rule R5:
+C     codes confined to 9001-9999).  Do NOT abort and do NOT escape to
+C     any other unit.  ICODE (an INPUT argument) is left unmodified; the
+C     local JCODE carries the in-band code actually written.
+      JCODE = ICODE
       IF (ICODE .LT. 9001 .OR. ICODE .GT. 9999) THEN
          WRITE (LOUT, 110) ICODE
+         JCODE = 9999
       END IF
   110 FORMAT (' *** MODERN DIAG OUT-OF-BAND CODE = ', I10)
 C
-C     CORE ACTION -- write one formatted diagnostic record to unit 3.
+C     CORE ACTION -- write one formatted diagnostic record to unit 3
+C     using the in-band JCODE (NEVER the possibly-invalid ICODE).
 C     The leading blank in the format is line-printer carriage control.
-      WRITE (LOUT, 100) ICODE, MSG, NVAL
+      WRITE (LOUT, 100) JCODE, MSG, NVAL
   100 FORMAT (' *** MODERN DIAGNOSTIC ', I6, 1X, A, 1X,
      &        '(VALUE=', I12, ')')
 C

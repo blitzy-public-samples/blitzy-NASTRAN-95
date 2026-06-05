@@ -77,7 +77,10 @@ C         NXTCMP  -- advance one stream to its next comparable line.
 C         ICLASS  -- classify a token: 0=TEXT, 1=INTEGER, 2=REAL.
 C     The tokenizer and the real-token parse are inlined in OUTCOMP.
 C=====================================================================
-      IMPLICIT NONE
+C     STRICT FORTRAN 77 -- every name in this program unit is
+C     EXPLICITLY typed below; no IMPLICIT NONE (an F90 feature) is used
+C     and no name relies on implicit typing (AAP 0.7.2: no non-F77
+C     dialect features).
 C     --- dummy arguments ---
       INTEGER          LUTST, LUREF, LULOG, NDIFF, IRET
 C     --- relative floating-point tolerance: 6 significant figures ---
@@ -358,18 +361,22 @@ C         'SOLARIS NASTRAN' -> per-page header (also sets HEADSN).
 C         'DATE:'           -> final timing tail.
 C         'END TIME'        -> final timing tail.
 C         'WALL CLOCK'      -> final timing tail.
-C     Control characters (ICHAR .LT. 32, e.g. a trailing CR from CRLF
-C     endings) are replaced by a blank across the whole record before
-C     any test, so CRLF-terminated files compare cleanly.
+C     Text line-ending residue -- a trailing CR (13) or LF (10) left in
+C     the record by a CRLF-terminated file -- is replaced by a blank so
+C     such files compare cleanly.  ANY OTHER control byte (ICHAR .LT.
+C     32), in particular an embedded NUL (0), marks the record as
+C     embedded binary / non-text: NXTCMP sets IERR = 1 and IEOF = 1 and
+C     returns, so OUTCOMP reports IRET = 1 (e.g. demoout/t01231a.out).
 C
 C     SELF-CONTAINED -- NO COMMON, NO EQUIVALENCE, NO INCLUDE.
 C=====================================================================
-      IMPLICIT NONE
+C     STRICT FORTRAN 77 -- all names explicitly typed; no IMPLICIT NONE
+C     (an F90 feature) is used (AAP 0.7.2: no non-F77 dialect features).
       INTEGER       LU, IEOF, IERR, LCONT
       LOGICAL       HEADSN
       CHARACTER*(*) CONT
       CHARACTER*256 BUF
-      INTEGER       IOS, I
+      INTEGER       IOS, I, IC
       INTRINSIC     INDEX, ICHAR, CHAR, LEN
 C
       IEOF = 0
@@ -388,9 +395,23 @@ C        --- hard read error (e.g. an embedded-binary output file) ---
          RETURN
       END IF
 C
-C     --- normalize control characters (covers CR = 13) to a blank ---
+C     --- scan for control bytes.  Tolerate ONLY the expected text
+C     --- line-ending residue CR (13) / LF (10), normalizing it to a
+C     --- blank; treat EVERY other control byte (ICHAR .LT. 32) -- in
+C     --- particular an embedded NUL (0) -- as embedded binary: flag a
+C     --- hard error so OUTCOMP returns IRET = 1 instead of silently
+C     --- comparing binary content as blanks (e.g. demoout/t01231a.out).
       DO 20 I = 1, 256
-         IF (ICHAR(BUF(I:I)) .LT. 32) BUF(I:I) = CHAR(32)
+         IC = ICHAR(BUF(I:I))
+         IF (IC .LT. 32) THEN
+            IF (IC .EQ. 13 .OR. IC .EQ. 10) THEN
+               BUF(I:I) = CHAR(32)
+            ELSE
+               IERR = 1
+               IEOF = 1
+               RETURN
+            END IF
+         END IF
    20 CONTINUE
 C
 C     --- volatile per-page header: carries a volatile DATE and PAGE
@@ -451,7 +472,8 @@ C         L   (INTEGER, in)       the token length in characters.
 C
 C     SELF-CONTAINED -- NO COMMON, NO EQUIVALENCE, NO INCLUDE.
 C=====================================================================
-      IMPLICIT NONE
+C     STRICT FORTRAN 77 -- all names explicitly typed; no IMPLICIT NONE
+C     (an F90 feature) is used (AAP 0.7.2: no non-F77 dialect features).
       CHARACTER*(*) STR
       INTEGER       L
       INTEGER       I, ND

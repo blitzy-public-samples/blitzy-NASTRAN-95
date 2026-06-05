@@ -17,13 +17,17 @@
 #
 # PURPOSE
 #   TDGGRD verifies the GUARD-CLAUSE ZERO-OVERHEAD property of the
-#   modern diagnostic layer: every routine in modern/diag/ begins
-#   with the guard clause
+#   modern diagnostic layer: every diagnostic-EMITTER routine in
+#   modern/diag/ begins with the guard clause
 #
 #       IF (IDIAG .EQ. 0) RETURN
 #
-#   as its FIRST executable statement.  When diagnostics are disabled
-#   (IDIAG = 0) the routine returns immediately and performs no I/O,
+#   as its FIRST executable statement.  (The DIAGCTL setter is the one
+#   deliberate exemption: it COMPUTES IDIAG from the NASTRAN_* toggles
+#   and so cannot guard on the value it produces; the guard applies to
+#   the EMITTERS such as DIAGLOG that CONSUME IDIAG.)  When diagnostics
+#   are disabled (IDIAG = 0) the emitter returns immediately and
+#   performs no I/O,
 #   so it incurs no measurable cost.  The only portable behavioral
 #   proof of this property is "disabled => zero output": a call to
 #   modern/diag/diaglog.f while IDIAG = 0 must write ZERO records to
@@ -32,8 +36,9 @@
 # RATIONALE (evidence from the AAP and the reference sources)
 #   * The guard clause as the first executable statement is a HARD
 #     success criterion of the refactor (AAP 0.6.4, 0.7.2, 0.7.3):
-#     every diagnostic routine begins with IF (IDIAG .EQ. 0) RETURN
+#     every diagnostic EMITTER begins with IF (IDIAG .EQ. 0) RETURN
 #     as its first executable statement, verifiable by inspection.
+#     (The DIAGCTL setter that COMPUTES IDIAG is exempt by design.)
 #   * IDIAG is the single diagnostic-enable state.  It is set once by
 #     modern/diag/diagctl.f from the NASTRAN_* environment toggles;
 #     when those toggles are unset IDIAG = 0, the layer is OFF, and

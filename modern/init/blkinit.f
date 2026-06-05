@@ -105,9 +105,9 @@ C        cell 34  NBRCBU = 15     DUM1(32)  CDC FET + dummy index len
 C        cell 35  LPRUS  = 64     DUM1(33)  CDC words per PRU
 C
 C     CELL-POSITION / NBPW-OFFSET RESOLUTION (maintainer note).  The
-C     sibling modern/state/stateacc.f flags NBPW as "word 40 in SMCOMX
-C     vs word 38 in the canonical bd/semdbd.f layout" and leaves it
-C     unresolved.  RESOLVED here: the "38" is a naive ALL-SCALAR count.
+C     sibling modern/state/stateacc.f and this routine AGREE that NBPW
+C     is word 40 in BOTH the SMCOMX.COM and the array-aware bd/semdbd.f
+C     layouts.  RESOLVED: the "38" is a naive ALL-SCALAR count.
 C     bd/semdbd.f L218-219 dimensions DATE(3),SYSDAT(3),ADUMEL(9),
 C     MODCOM(9),HDY(3),SWITCH(3),K8890(3),LEFT(56),LEFT2(28); counting
 C     those arrays makes /SYSTEM/ exactly 180 words (== LSYSTM) and

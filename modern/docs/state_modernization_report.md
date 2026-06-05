@@ -98,7 +98,7 @@ the sparse-matrix communication block `/SMCOMX/`, all declared in
 |---|---|---|
 | `GETSBUF` / `SETSBUF` | `/SYSTEM/ ISYSBF` | word 1 — consistent across all `/SYSTEM/` layouts (**SAFE**) |
 | `GETNOUT` / `SETNOUT` | `/SYSTEM/ NOUT`   | word 2 (print-output unit) — consistent across all `/SYSTEM/` layouts (**SAFE**) |
-| `GETNBPW` / `SETNBPW` | `/SYSTEM/ NBPW`   | **FLAG**: word 40 in the `SMCOMX.COM` layout vs word 38 in the canonical `bd/semdbd.f` layout — these accessors rely on the `SMCOMX.COM` layout (see *Scope Omissions & Flags*) |
+| `GETNBPW` / `SETNBPW` | `/SYSTEM/ NBPW`   | **RESOLVED**: word 40 in the `SMCOMX.COM` layout, and the array-aware `bd/semdbd.f` layout *also* places `NBPW` at word 40 (the "word 38" figure is only a naive scalar miscount); the two agree (see *Scope Omissions & Flags*) |
 | `GETNCOL` / `SETNCOL` | `/SMCOMX/ NCOL`   | |
 | `GETIERR` / `SETIERR` | `/SMCOMX/ IERROR` | |
 
@@ -306,16 +306,17 @@ references them; they remain available, as-is, for a future modernization phase:
   block, additionally subject to the `IBASE`/`MEM` layout conflict noted above.
 - **`/MMACOM/`** (`mis/MMACOM.COM`) — matrix-multiply/add communication words.
 
-**`/SYSTEM/` `NBPW` word-offset flag (maintainer confirmation requested).** The
+**`/SYSTEM/` `NBPW` word-position note (resolved).** The
 `/SYSTEM/` accessors rely on the `SMCOMX.COM` `/SYSTEM/` layout
 (`ISYSBF, NOUT, DUM1(37), NBPW, DUM2(14), ISPREC`), in which **`NBPW` is word
-40**. The canonical `bd/semdbd.f` layout is documented as placing **`NBPW` at
-word 38**, so the offset differs between the two declarations. This discrepancy
-is **FLAGGED for maintainer confirmation** and the accessors are committed to the
-`SMCOMX.COM` view. Crucially, it does **not** affect correctness of a `SET`-then-
-`GET` round-trip: `SETNBPW` writes, and `GETNBPW` reads back, the **same cell**
-within the `SMCOMX.COM` layout, so the round-trip is exact regardless of which
-absolute word the cell occupies. Words 1 (`ISYSBF`) and 2 (`NOUT`) are consistent
+40**. The **array-aware** `bd/semdbd.f` layout *also* places **`NBPW` at word
+40**; the often-quoted "word 38" is only a **naive all-scalar miscount**, not the
+canonical layout, so the two declarations **agree** (corroborated independently
+by the `mds/btstrp.f` `EQUIVALENCE (B(40), NBPW)`; see also
+`init_modernization_report.md`, which resolves this the same way). The accessors
+are committed to the `SMCOMX.COM` view, and a `SET`-then-`GET` round-trip is
+exact in any case: `SETNBPW` writes, and `GETNBPW` reads back, the **same cell**
+within the `SMCOMX.COM` layout. Words 1 (`ISYSBF`) and 2 (`NOUT`) are consistent
 across every NASTRAN `/SYSTEM/` declaration and are **SAFE**.
 
 **`KTIME` is not a `/SYSTEM/` cell.** For the avoidance of doubt, `KTIME` (the

@@ -45,8 +45,11 @@
 #   setenv NASTROOT /path/to/nast95  (optional: override the repo root)
 #
 # EXIT STATUS
-#   0   all unit drivers built, ran, and reported PASS
-#   1   one or more drivers reported FAIL, or a build/run step failed
+#   0   every expected suite was present with >=1 driver, and ALL
+#       drivers built, ran, and reported PASS (>=1 driver discovered)
+#   1   one or more drivers reported FAIL; a build/run step failed; an
+#       expected suite directory was missing; a suite contained no *.f
+#       drivers; or no drivers were discovered at all
 #=======================================================================
 
 unalias rm
@@ -78,7 +81,7 @@ endif
 set NASTLIB = $NASTROOT/bin/nastlib.a    # archive each driver links against
 set FFLAGS  = "-fast -dn"                 # EXACT flags from bin/linknas
 set TESTDIR = $NASTROOT/test
-set SUITES  = "init state dispatch diag"  # the four unit suites, in order
+set SUITES  = ( init state dispatch diag )  # four unit suites, csh word list
 
 # Work / results area for per-driver executables, per-driver logs, and
 # the aggregated run log that the final FAIL: grep is applied to.
@@ -129,11 +132,14 @@ foreach suite ( $SUITES )
    set suitedir = $TESTDIR/$suite
    echo "---- suite: $suite ($suitedir) ----" >> $RUNLOG
 
-   # Guard: suite directory absent (e.g. a partial / phased checkout).
-   # Make it visible with a NOTICE; do NOT silently pass.
+   # Guard: an EXPECTED suite directory is absent (e.g. a partial /
+   # phased checkout).  A missing expected suite is a FAILURE for final
+   # validation -- emit a FAIL: token AND count it so the run exits
+   # non-zero; never silently pass (Binding Rule R14 / AAP 0.7.5).
    if ( ! -d $suitedir ) then
-      echo "NOTICE: suite directory $suitedir not found - skipping" >> $RUNLOG
-      echo "NOTICE: suite directory $suitedir not found - skipping"
+      echo "FAIL: suite directory $suitedir not found" >> $RUNLOG
+      echo "FAIL: suite directory $suitedir not found"
+      @ nfail++
       continue
    endif
 
@@ -141,10 +147,13 @@ foreach suite ( $SUITES )
    # reusable across future modernization phases).  With nonomatch an
    # empty suite yields the literal pattern as the single list element,
    # so a -e test on the first element detects "no real .f drivers".
+   # An expected suite with no drivers is a FAILURE (Binding Rule R14):
+   # emit a FAIL: token AND count it so the run exits non-zero.
    set drivers = ( $suitedir/*.f )
    if ( ! -e "$drivers[1]" ) then
-      echo "NOTICE: no *.f unit drivers in $suitedir - skipping" >> $RUNLOG
-      echo "NOTICE: no *.f unit drivers in $suitedir - skipping"
+      echo "FAIL: no *.f unit drivers in $suitedir" >> $RUNLOG
+      echo "FAIL: no *.f unit drivers in $suitedir"
+      @ nfail++
       continue
    endif
 
@@ -188,6 +197,15 @@ foreach suite ( $SUITES )
       endif
    end
 end
+
+# Belt-and-suspenders: if NOT A SINGLE driver was discovered across all
+# suites, this run proves nothing and MUST NOT report success.  Count it
+# as a failure so the exit status is non-zero (Binding Rule R14).
+if ( $ndrv == 0 ) then
+   echo "FAIL: no unit drivers discovered in any suite" >> $RUNLOG
+   echo "FAIL: no unit drivers discovered in any suite"
+   @ nfail++
+endif
 
 #-----------------------------------------------------------------------
 # Phase C -- aggregate, grep, report, exit

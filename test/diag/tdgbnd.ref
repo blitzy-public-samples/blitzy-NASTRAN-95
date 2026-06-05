@@ -16,11 +16,15 @@
 #=====================================================================
 #
 # PURPOSE
-#   TDGBND verifies the message-code band reserved for NEW
-#   modernization diagnostics emitted through MESAGE by
-#   modern/diag/diaglog.f.  The hard constraint (AAP 0.7.2) is:
-#   new MESAGE codes live ONLY in the band 9001-9999.  This
-#   reference encodes the band bounds, the representative in-band
+#   TDGBND verifies the numeric diagnostic-code band reserved for NEW
+#   modernization diagnostics CONSUMED by modern/diag/diaglog.f.
+#   DIAGLOG writes its diagnostic records DIRECTLY to logical unit 3
+#   and does NOT call MESAGE; the SAME 9001-9999 band is also reserved
+#   for any new MESAGE codes elsewhere in the modern layer (e.g. the
+#   fatal code DISPTBL raises for an unmapped MODX).  The hard
+#   constraint (AAP 0.7.2) is: new MESAGE codes live ONLY in the band
+#   9001-9999, and DIAGLOG's diagnostic codes occupy that same band.
+#   This reference encodes the band bounds, the representative in-band
 #   codes the driver exercises, and the registry evidence that
 #   justifies the band being free.
 #

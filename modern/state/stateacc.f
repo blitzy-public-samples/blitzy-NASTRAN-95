@@ -38,16 +38,18 @@ C         IF (IDIAG .EQ. 0) RETURN guard belongs to the validators and
 C         loggers -- diaglog.f, initval.f, stateval.f, dispval.f --
 C         NOT to these accessors.)
 C
-C     /SYSTEM/ LAYOUT FLAG (maintainer confirmation requested):
+C     /SYSTEM/ LAYOUT NOTE (NBPW word position -- RESOLVED):
 C       The /SYSTEM/ accessors rely on the SMCOMX.COM /SYSTEM/ layout
 C       (ISYSBF,NOUT,DUM1(37),NBPW,DUM2(14),ISPREC).  /SYSTEM/ appears
-C       in only this one of the nine headers.  NBPW is word 40 in this
-C       layout, vs word 38 in the canonical bd/semdbd.f layout -- the
-C       offset differs and is FLAGGED.  Words 1 (ISYSBF) and 2 (NOUT)
-C       are consistent across every NASTRAN /SYSTEM/ declaration and
-C       are SAFE.  KTIME is NOT a named /SYSTEM/ cell here; the
-C       dispatcher obtains it via CALL TMTOGO(KTIME).  A pure
-C       SET-then-GET round-trip is correct regardless of the offset,
+C       in only this one of the nine headers.  NBPW is word 40 here,
+C       and the ARRAY-AWARE bd/semdbd.f layout ALSO puts NBPW at word
+C       40; the "word 38" figure is only a NAIVE all-scalar miscount,
+C       not the canonical layout (corroborated by the mds/btstrp.f
+C       EQUIVALENCE (B(40),NBPW)), so the two layouts AGREE.  Words 1
+C       (ISYSBF) and 2 (NOUT) are consistent across every NASTRAN
+C       /SYSTEM/ declaration and are SAFE.  KTIME is NOT a named
+C       /SYSTEM/ cell here; the dispatcher obtains it via CALL
+C       TMTOGO(KTIME).  A pure SET-then-GET round-trip is correct
 C       because it reads back the very cell it wrote within the SMCOMX
 C       layout.
 C
@@ -363,11 +365,12 @@ C
 C     GET accessor for /SYSTEM/ NBPW (mis/SMCOMX.COM). INTEGER.
 C     Relies on the SMCOMX.COM /SYSTEM/ layout
 C     (ISYSBF,NOUT,DUM1(37),NBPW,DUM2(14),ISPREC). /SYSTEM/ appears in
-C     only this one of the nine headers; NBPW is word 40 in the SMCOMX
-C     layout, vs word 38 in the canonical bd/semdbd.f layout -- the
-C     word offset differs. FLAGGED for maintainer confirmation. KTIME
-C     is NOT a named /SYSTEM/ cell here -- the dispatcher obtains it
-C     via CALL TMTOGO(KTIME).
+C     only this one of the nine headers; NBPW is word 40 here, and the
+C     ARRAY-AWARE bd/semdbd.f layout ALSO places NBPW at word 40 (the
+C     "word 38" figure is only a NAIVE all-scalar miscount, not the
+C     canonical layout; corroborated by mds/btstrp.f EQUIVALENCE
+C     (B(40),NBPW)). KTIME is NOT a named /SYSTEM/ cell here -- the
+C     dispatcher obtains it via CALL TMTOGO(KTIME).
       INCLUDE 'SMCOMX.COM'
       INTEGER IVAL
       IVAL = NBPW
@@ -378,11 +381,12 @@ C
 C     SET accessor for /SYSTEM/ NBPW (mis/SMCOMX.COM). INTEGER.
 C     Relies on the SMCOMX.COM /SYSTEM/ layout
 C     (ISYSBF,NOUT,DUM1(37),NBPW,DUM2(14),ISPREC). /SYSTEM/ appears in
-C     only this one of the nine headers; NBPW is word 40 in the SMCOMX
-C     layout, vs word 38 in the canonical bd/semdbd.f layout -- the
-C     word offset differs. FLAGGED for maintainer confirmation. KTIME
-C     is NOT a named /SYSTEM/ cell here -- the dispatcher obtains it
-C     via CALL TMTOGO(KTIME).
+C     only this one of the nine headers; NBPW is word 40 here, and the
+C     ARRAY-AWARE bd/semdbd.f layout ALSO places NBPW at word 40 (the
+C     "word 38" figure is only a NAIVE all-scalar miscount, not the
+C     canonical layout; corroborated by mds/btstrp.f EQUIVALENCE
+C     (B(40),NBPW)). KTIME is NOT a named /SYSTEM/ cell here -- the
+C     dispatcher obtains it via CALL TMTOGO(KTIME).
       INCLUDE 'SMCOMX.COM'
       INTEGER IVAL
       NBPW = IVAL
