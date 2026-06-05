@@ -1,0 +1,29 @@
+# tinval.ref  --  reference / contract data for test/init/tinval.f
+# ---------------------------------------------------------------------
+# Purpose: documents the expected behaviour of modern/init/initval.f,
+#          the bitwise initialisation-state validator.
+#
+# Contract under test (assumed cross-agent interface):
+#   SUBROUTINE INITVAL ( NDIV )
+#     INTEGER NDIV   ! out: count of bitwise divergences of the modern
+#                    !      init state vs the legacy BLOCK DATA values;
+#                    !      0 == perfect bitwise match.
+#   Guard clause: 'IF (IDIAG .EQ. 0) RETURN' is the first executable
+#   statement, so INITVAL runs only when diagnostics are enabled by
+#   modern/diag/diagctl.f from NASTRAN_INIT_VALIDATE=1.
+#
+# Format:  comment lines begin with '#'; data lines are 'KEY VALUE'.
+# Run with NASTRAN_INIT_VALIDATE=1 and NASTRAN_LEGACY_INIT unset.
+# EXPECT_VERDICT PASS: TINVAL
+# ---------------------------------------------------------------------
+#
+# Binding assertions consumed by tinval.f:
+#   EXPDIV = 0 -> zero divergences after a correct modern init.
+#   EXPRAN = 1 -> the validator must actually execute (NDIV set away
+#                 from the driver's 999999 sentinel), proving the
+#                 NASTRAN_INIT_VALIDATE gate is honoured. tinval.f also
+#                 calls INITVAL twice and requires an identical result
+#                 (the validator must be side-effect-free / idempotent).
+EXPDIV 0
+EXPRAN 1
+# end of tinval.ref
