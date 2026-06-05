@@ -1,0 +1,97 @@
+#=====================================================================
+# test/diag/tdgctl.ref
+#
+# Reference-value data for PROGRAM TDGCTL (test/diag/tdgctl.f).
+#
+# Routine under test : modern/diag/diagctl.f
+# Reference source   : bin/nastrn.f (GETENV idiom, LOUT=3);
+#                      bin/nastran  (csh env-var toggle convention)
+#
+# DELIVERABLE -- used in Solaris; not executed by Blitzy.
+# This file is reference DATA only.  It is NOT a *.f source and is NOT
+# matched by the test/run_units.csh "*.f" build glob, so it is never
+# compiled or linked.  It is read/inspected by the unit driver and the
+# test harness in the developer's Solaris environment (csh + Sun f77).
+#
+# Expected verdict   : PASS: TDGCTL
+#=====================================================================
+#
+# PURPOSE
+#   TDGCTL verifies TOGGLE WIRING and the DEFAULT-SILENT (APR.95)
+#   behavior of modern/diag/diagctl.f.  DIAGCTL reads the NASTRAN_*
+#   environment toggles via GETENV and computes the diagnostics-enable
+#   state IDIAG once (returned as the output argument of
+#   SUBROUTINE DIAGCTL (IDIAG)).  The central safety / rollback
+#   guarantee is: with NO toggle set, IDIAG = 0, every guarded modern/
+#   routine short-circuits, and the run is bit-identical to the
+#   unmodified APR.95 solver.  This reference encodes the toggle set,
+#   the env -> IDIAG state mapping, and the expected driver verdict.
+#
+# CONFIGURATION TOGGLES (read by DIAGCTL via GETENV; default = unset)
+#   The exact subset that drives IDIAG is DEFINED BY
+#   modern/diag/diagctl.f; this list is aligned with that source.
+#   DIAGCTL contributes one bit to IDIAG for each toggle that is set
+#   to a non-blank value (the bin/nastrn.f GETENV idiom: an unset
+#   variable comes back blank, so blank/unset => disabled):
+#
+#     NASTRAN_LEGACY_INIT        bit value 1
+#     NASTRAN_INIT_VALIDATE      bit value 2
+#     NASTRAN_DISPATCH_VALIDATE  bit value 4
+#     NASTRAN_DISPATCH_LOG       bit value 8
+#
+#   IDIAG = sum of the bit values of the toggles that are set.
+#
+# EXPECTED STATE MAPPING (env -> IDIAG -> behavior)
+#   all toggles unset          => IDIAG = 0  => SILENT / APR.95
+#                                 default (zero diagnostic records on
+#                                 logical unit 3 / LOUT).
+#   any relevant NASTRAN_* set => IDIAG non-zero => ENABLED (the
+#                                 guard clause passes; DIAGLOG emits
+#                                 to logical unit 3).
+#
+#   Representative combinations (for human review):
+#     (none set)                    => IDIAG = 0   (silent)
+#     NASTRAN_LEGACY_INIT set       => IDIAG = 1   (enabled)
+#     NASTRAN_INIT_VALIDATE set     => IDIAG = 2   (enabled)
+#     NASTRAN_DISPATCH_VALIDATE set => IDIAG = 4   (enabled)
+#     NASTRAN_DISPATCH_LOG set      => IDIAG = 8   (enabled)
+#     all four toggles set          => IDIAG = 15  (enabled)
+#
+# RATIONALE (evidence from the reference sources)
+#   * bin/nastrn.f establishes the NASTRAN configuration idiom:
+#     environment variables read at startup via GETENV into a
+#     CHARACTER*80 receiver (VALUE=' ' then CALL GETENV(name,VALUE));
+#     an unset variable returns all blanks.  The modern NASTRAN_*
+#     toggles follow this same idiom (non-blank => set/enabled).
+#   * bin/nastrn.f makes logical unit 3 the NASTRAN log: after the
+#     bootstrap CALL DBMINT (L44) it sets LOUT = 3 (L45) -- the only
+#     sink a modern diagnostic write may reach.
+#   * bin/nastran (csh wrapper) passes env vars inline before
+#     nastrn.exe; that is where operators add the NASTRAN_* toggles to
+#     enable diagnostics.  Rollback to APR.95 is therefore a pure
+#     configuration change (unset the toggle) with no recompilation.
+#
+# BINDING EXPECTATION
+#   In a clean environment (the runner sets only LOGNM, no NASTRAN_*),
+#   after CALL DIAGCTL(IDIAG) the state is DISABLED: IDIAG = 0.  The
+#   driver confirms default-silence behaviorally -- a subsequent
+#   DIAGLOG call writes ZERO records to logical unit 3 because the
+#   guard clause IF (IDIAG .EQ. 0) RETURN short-circuits before any
+#   I/O -- and then emits the verdict PASS: TDGCTL to logical unit 3.
+#
+# CONSISTENCY
+#   DEFAULT_IDIAG below MUST match the assertion hardcoded in
+#   test/diag/tdgctl.f (clean env => IDIAG = 0 / silent) and the
+#   env -> IDIAG mapping in modern/diag/diagctl.f.  ALL_SET_IDIAG and
+#   TOGGLE_COUNT reflect the four-toggle bitmask above.  If the driver
+#   author and the modern/diag/diagctl.f author finalize a different
+#   toggle subset, update both the driver and this reference to agree.
+#
+#---------------------------------------------------------------------
+# Machine-readable key/value lines (whitespace separated, one per
+# line).  These are the values the driver and harness parse.
+#---------------------------------------------------------------------
+DEFAULT_IDIAG 0
+TOGGLE_COUNT 4
+ALL_SET_IDIAG 15
+EXPECT_VERDICT PASS: TDGCTL
