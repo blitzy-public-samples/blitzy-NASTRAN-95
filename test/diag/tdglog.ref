@@ -1,0 +1,63 @@
+#=====================================================================
+# test/diag/tdglog.ref
+#
+# Reference-value data for PROGRAM TDGLOG (test/diag/tdglog.f).
+#
+# Routine under test : modern/diag/diaglog.f
+# Reference source   : bin/nastrn.f (LOUT=3); mis/mesage.f (NOUT)
+#
+# DELIVERABLE -- used in Solaris; not executed by Blitzy.
+# This file is reference DATA only.  It is NOT a *.f source and is NOT
+# matched by the bin/linknas "*.f" build glob, so it is never compiled
+# or linked.  It is read/inspected by the unit driver and the test
+# harness in the developer's Solaris environment (csh + Sun f77).
+#
+# Expected verdict   : PASS: TDGLOG
+#=====================================================================
+#
+# PURPOSE
+#   TDGLOG verifies that the modern diagnostic writer
+#   modern/diag/diaglog.f emits its formatted record EXCLUSIVELY to
+#   logical unit 3 (LOUT) when diagnostics are enabled.  The hard
+#   constraint (AAP 0.7.2) is: all diagnostic output goes to logical
+#   unit 3 (LOUT) only -- never stdout and never a new unit.  This
+#   reference encodes the output unit, the minimum record count, the
+#   representative in-band code the driver emits, and the source
+#   evidence that justifies unit 3 being the diagnostic sink.
+#
+# RATIONALE (evidence from bin/nastrn.f and mis/mesage.f)
+#   * bin/nastrn.f makes logical unit 3 the NASTRAN log: after the
+#     bootstrap CALL DBMINT it sets LOUT = 3 and opens unit 3
+#     (OPEN(3,FILE=DSNAMES(3),STATUS='UNKNOWN')).
+#   * mis/mesage.f shows the LEGACY MESAGE writer targets NOUT
+#     (COMMON /SYSTEM/ IBUF,NOUT,... ; WRITE(NOUT,...)), i.e. the
+#     legacy print stream (~unit 6), NOT unit 3.
+#   * The modern writer therefore deliberately uses unit 3 / LOUT,
+#     keeping new diagnostics off the legacy NOUT stream and off
+#     stdout.  This reference pins OUTPUT_UNIT 3 as the contract.
+#
+# BINDING EXPECTATION
+#   With diagnostics ENABLED (IDIAG non-zero), CALL DIAGLOG(9001)
+#   writes AT LEAST ONE record to logical unit 3 (LOUT), to no other
+#   unit, and never to stdout.  The output unit is exactly 3.
+#
+# EXCLUSIVITY (by inspection of modern/diag/diaglog.f)
+#   Exclusivity to unit 3 -- never stdout, never a new unit -- is
+#   additionally guaranteed by inspection of modern/diag/diaglog.f:
+#   it contains a single write target = unit 3 / LOUT.
+#
+# CONSISTENCY
+#   OUTPUT_UNIT and SAMPLE_CODE below MUST match the constants
+#   asserted in test/diag/tdglog.f and the single write target in
+#   modern/diag/diaglog.f (enabled => >=1 record on unit 3).  The
+#   sample code 9001 lies in the reserved 9001-9999 new-diagnostics
+#   MESAGE band (AAP 0.7.2).
+#
+#---------------------------------------------------------------------
+# Machine-readable key/value lines (whitespace separated, one per
+# line).  These are the values the driver and harness parse.
+#---------------------------------------------------------------------
+OUTPUT_UNIT 3
+EXPECT_MIN_UNIT3_RECORDS 1
+SAMPLE_CODE 9001
+EXPECT_VERDICT PASS: TDGLOG
