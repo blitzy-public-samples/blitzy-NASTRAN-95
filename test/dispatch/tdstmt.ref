@@ -1,0 +1,26 @@
+# tdstmt.ref - Expected TMTOGO(KTIME) placement for PROGRAM TDSTMT
+#
+# Source of truth: FROZEN mis/xsem00.f (read-only) and mis/tmtogo.f.
+# The modern dispatcher modern/dispatch/disptbl.f must preserve
+# EXACTLY ONE pre-dispatch CALL TMTOGO(KTIME), mirroring the legacy
+# single call at mis/xsem00.f L196 (250 CALL TMTOGO (KTIME)).
+#
+# Key/value lines (machine-readable). The driver tdstmt.f hardcodes
+# these expectations and counts the calls via a local TMTOGO stub.
+#
+EXPECT_TMTOGO_CALLS 1
+NOOP_MODX 25
+ALT_NOOP_MODX 36
+#
+# Notes:
+#  - The driver calls the dispatcher with a RESERVED no-op MODX (25)
+#    so no module subroutine executes; only the single pre-dispatch
+#    CALL TMTOGO is exercised, and must be called exactly once.
+#  - mis/tmtogo.f: SUBROUTINE TMTOGO (TOGO); INTEGER TOGO. The driver
+#    stub returns a large positive TOGO so the time-budget guard
+#    (KTIME .LE. 0) is NOT taken.
+#  - KTIME originates from /SYSTEM/ (declared in mis/SMCOMX.COM per
+#    the AAP discrepancy flag); the driver does not declare /SYSTEM/
+#    - the stub fills the passed argument.
+#
+# EXPECT_VERDICT PASS: TDSTMT
