@@ -724,3 +724,30 @@ C     XXPARM (236 words)
 8072  CONTINUE
       IF (IBAD .NE. 0)
      &   CALL DIAGLOG (IDIAG, 9101, IBAD, 'BD XXPARM')
+C     SEM (33 words) -- PARTIAL: validate word 1 (MASK) and words 4-33
+C     (NAME); skip BTSTRP-owned words 2,3 (not reproduced by blkinit.f),
+C     matching the bdcopy.inc copy mask exactly.
+      IBAD = 0
+      IF (KB0073(1) .NE. BDGOLD(31317)) THEN
+        NDIV = NDIV + 1
+        IBAD = 1
+      END IF
+      DO 8073 IBD = 4, 33
+      IF (KB0073(IBD) .NE. BDGOLD(31316+IBD)) THEN
+        NDIV = NDIV + 1
+        IF (IBAD .EQ. 0) IBAD = IBD
+      END IF
+8073  CONTINUE
+      IF (IBAD .NE. 0)
+     &   CALL DIAGLOG (IDIAG, 9101, IBAD, 'BD SEM')
+C     TWO (33 words) -- PARTIAL: validate words 2-32 (powers of two);
+C     skip BTSTRP-owned words 1,33, matching the bdcopy.inc copy mask.
+      IBAD = 0
+      DO 8074 IBD = 2, 32
+      IF (KB0074(IBD) .NE. BDGOLD(31349+IBD)) THEN
+        NDIV = NDIV + 1
+        IF (IBAD .EQ. 0) IBAD = IBD
+      END IF
+8074  CONTINUE
+      IF (IBAD .NE. 0)
+     &   CALL DIAGLOG (IDIAG, 9101, IBAD, 'BD TWO')

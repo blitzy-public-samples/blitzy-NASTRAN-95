@@ -36,11 +36,11 @@ coverage headers:
 | File | Role |
 |---|---|
 | `modern/init/nastinit.f` | The single initialization entry point invoked by `CALL NASTINIT`; reads the `NASTRAN_LEGACY_INIT` toggle via `GETENV` and orchestrates the explicit init path; optionally runs validation. |
-| `modern/init/blkinit.f` | The explicit, ordered initializer that reproduces the **complete `bd/`-DATA-seeded, non-bootstrap `COMMON` set** ("the R set" — 72 blocks, 31,316 words) plus the safe `/SYSTEM/` config subset, reaching state through `INCLUDE` headers only. |
+| `modern/init/blkinit.f` | The explicit, ordered initializer that reproduces the **complete `bd/`-DATA-seeded, non-bootstrap `COMMON` set** ("the R set" — 74 blocks, 31,382 words) plus the safe `/SYSTEM/` config subset, reaching state through `INCLUDE` headers only. |
 | `modern/init/initval.f` | The bitwise initialization-state validator that compares the modern init result against the legacy `BLOCK DATA` values **word-for-word** and reports any divergence. |
-| `modern/init/bddata.inc` | Coverage header declaring the **72** R-set `COMMON` blocks with clash-free flat `INTEGER` window arrays (`COMMON /blk/ KBnnnn(extent)`). |
-| `modern/init/bdgold.inc` | The **31,316-word** golden `DATA` (`INTEGER BDGOLD(31316)`), captured by linking the real `bd/` objects and dumping `COMMON` memory — so `REAL`, `INTEGER`, and Hollerith fields are all reproduced bit-for-bit **by construction**. |
-| `modern/init/bdcopy.inc` | Executable body (used by `blkinit.f`) copying the goldens into the 72 `COMMON` windows. |
+| `modern/init/bddata.inc` | Coverage header declaring the **74** R-set `COMMON` blocks with clash-free flat `INTEGER` window arrays (`COMMON /blk/ KBnnnn(extent)`); 72 full blocks plus `/SEM/` and `/TWO/`. |
+| `modern/init/bdgold.inc` | The **31,382-word** golden `DATA` (`INTEGER BDGOLD(31382)`), captured by linking the real `bd/` objects and dumping `COMMON` memory — so `REAL`, `INTEGER`, and Hollerith fields are all reproduced bit-for-bit **by construction**. |
+| `modern/init/bdcopy.inc` | Executable body (used by `blkinit.f`) copying the goldens into the 74 `COMMON` windows (the `/SEM/` and `/TWO/` entries copy only their bootstrap-independent words). |
 | `modern/init/bdcomp.inc` | Executable body (used by `initval.f`) comparing each `COMMON` window word-for-word against the goldens, incrementing `NDIV` per divergence. |
 
 Specifically, this report records the **A1 algorithm decision** (initialization
@@ -128,10 +128,10 @@ it and records the **completed** reproduction status. The key facts:
 | Mechanism | Status |
 |---|---|
 | `bd/` unit catalogue | **39 `BLOCK DATA` units** catalogued (40 files; `bd/ferfbd.f` is a `SUBROUTINE` outlier) |
-| Distinct `bd/`-seeded `COMMON` blocks | **92** (authoritative linker-level count via `nm -S` over the compiled `bd/` objects) |
-| **R set** (DATA-seeded, non-bootstrap) | **72 blocks, 31,316 words — REPRODUCED & BITWISE-VALIDATED** (`NDIV = 0`) |
+| Distinct `bd/`-seeded `COMMON` blocks | **89** (source-level count over the 39 `BLOCK DATA` units). An `nm -S` scan over *all* compiled `bd/` objects reports **92** because it additionally counts 3 `COMMON` symbols (`/ZZZZZZ/`, `/OPINV/`, `/FEERIM/`) contributed by the non-`BLOCK DATA` `bd/ferfbd.f` `SUBROUTINE`, which seeds no `DATA`. |
+| **R set** (DATA-seeded, non-bootstrap) | **74 blocks, 31,382 words — REPRODUCED & BITWISE-VALIDATED** (`NDIV = 0`): 72 blocks reproduced in full, plus the bootstrap-independent words of `/SEM/` (MASK + NAME) and `/TWO/` (the powers-of-two table) |
 | `/SYSTEM/` safe config subset | **42 cells reproduced** (9 non-zero config values + 33 safe zero cells); machine cells deliberately untouched |
-| Principled exclusions | **20 non-R blocks** — 7 bootstrap-owned + 13 zero-only (default zero-init reproduces them); see **Reproduction Coverage** |
+| Principled exclusions | **15 non-R blocks** (source-level) — bootstrap/runtime-owned (`/MACHIN/`, `/LHPWX/`, `/XXREAD/`, the machine cells of `/SYSTEM/`) + `/GINOX/` (header collision) + 10 zero-only blocks (default zero-init reproduces them); see **Reproduction Coverage** |
 | Legacy `bd/` units | **Retained intact & unmodified** — source of truth for `initval.f` and rollback |
 | New literal `COMMON` / `EQUIVALENCE` in `.f` bodies | **Zero / Zero** — all access via `INCLUDE` |
 
@@ -149,32 +149,37 @@ blocks."* This refactor takes exactly that path — it adds **project-internal
 coverage headers** (`bddata.inc`, `bdgold.inc`, `bdcopy.inc`, `bdcomp.inc`) and
 reproduces **and bitwise-validates the complete R set**.
 
-### The 92-block partition
+### The 89-block partition (source-level)
 
-The 39 `bd/` units seed **92 distinct `COMMON` blocks** (authoritative linker-level
-count). They partition cleanly into three disjoint groups whose union is exactly
-92:
+The 39 `bd/` `BLOCK DATA` units seed **89 distinct `COMMON` blocks** at the source
+level. (An `nm -S` scan over *all* compiled `bd/` objects reports **92** because it
+additionally counts 3 `COMMON` symbols — `/ZZZZZZ/`, `/OPINV/`, `/FEERIM/` —
+declared in the non-`BLOCK DATA` `bd/ferfbd.f` `SUBROUTINE`, which seeds no `DATA`
+and is correctly NOT linked into the golden dump; those 3 are not part of the 39
+units' seeded state.) The 89 partition into the reproduced **R set** and the
+principled **exclusions**, whose union is exactly 89:
 
 | Group | Count | Treatment |
 |---|---|---|
-| **R set** — `DATA`-seeded, **non-bootstrap** | **72** (31,316 words) | **Reproduced** by `blkinit.f` (`bdcopy.inc`) and **bitwise-validated** by `initval.f` (`bdcomp.inc`). |
-| **Bootstrap-owned** — populated by `BTSTRP` / `DBMINT` (or scratch state) | **7** | **Excluded** — reproducing them would clobber live bootstrap state and break bit-for-bit equivalence (AAP §0.7.1). |
-| **Zero-only** — no `DATA` seeding (`bd` leaves them zero) | **13** | **Excluded from explicit writes** — default zero-init (unit model) and the linked `bd/` units (live model) already reproduce them. |
+| **R set** — `DATA`-seeded, **non-bootstrap** | **74** (31,382 words) | **Reproduced** by `blkinit.f` (`bdcopy.inc`) and **bitwise-validated** by `initval.f` (`bdcomp.inc`). 72 blocks reproduced in full, plus the bootstrap-independent words of `/SEM/` (copy `MASK` + `NAME`, skip BTSTRP-owned `MASK2,MASK3`) and `/TWO/` (copy the powers-of-two table, skip BTSTRP-owned `TWO(1),MZERO`). |
+| **Bootstrap/runtime-owned** — populated by `BTSTRP` / `DBMINT`, runtime I/O, or header collision | **5** | **Excluded** — reproducing them would clobber live bootstrap state and break bit-for-bit equivalence (AAP §0.7.1): `/MACHIN/`, `/LHPWX/`, `/XXREAD/`, the machine cells of `/SYSTEM/`, and `/GINOX/` (also a header-layout collision; `/SYSTEM/`'s 42 safe config cells are reproduced separately). |
+| **Zero-only** — no nonzero `DATA` seeding (`bd` leaves them zero) | **10** | **Excluded from explicit writes** — default zero-init (unit model) and the linked `bd/` units (live model) already reproduce them: `/NUMTPX/`, `/STAPID/`, `/STIME/`, `/XECHOX/`, `/XXFIAT/`, `/SMA1BK/`, `/SMA1DP/`, `/SMA1ET/`, `/SMA2BK/`, `/SMA2ET/`. |
 
-(The bootstrap-owned and zero-only groups overlap on four block names —
-`/LHPWX/`, `/MACHIN/`, `/XXREAD/`, `/ZZZZZZ/` — which are *both* zero-seeded *and*
-bootstrap/scratch-owned; counting the distinct union gives **20** non-R blocks, so
-**72 + 20 = 92**.)
+(**74 + 5 + 10 = 89.** `/SEM/` and `/TWO/` — the only two further blocks carrying
+nonzero `DATA` — were moved from the exclusion set into the R set in this
+checkpoint, reproduced and validated on their bootstrap-independent words only.)
 
 ### R-set reproduction — the coverage headers
 
-`bddata.inc` declares each of the 72 R-set blocks as a flat `INTEGER` window
+`bddata.inc` declares each of the 74 R-set blocks as a flat `INTEGER` window
 (`COMMON /blk/ KBnnnn(extent)`; the `K`-initial names are `INTEGER` by the default
-`I–N` rule and are clash-free). `bdgold.inc` carries the **31,316 golden words** as
-`DATA` into `INTEGER BDGOLD(31316)` — captured by **linking the real `bd/`
+`I–N` rule and are clash-free). `bdgold.inc` carries the **31,382 golden words** as
+`DATA` into `INTEGER BDGOLD(31382)` — captured by **linking the real `bd/`
 `BLOCK DATA` objects and dumping `COMMON` memory as integers**, so `REAL`,
 `INTEGER`, and Hollerith fields are reproduced **bit-for-bit by construction**, with
-no hand transcription. The sum of the 72 window extents equals `31316` exactly.
+no hand transcription. The sum of the 72 full-block window extents equals `31316`;
+the two partial blocks `/SEM/` and `/TWO/` (33 words each, golden offsets
+31317–31349 and 31350–31382) bring the golden array to `31382`.
 `blkinit.f` then `INCLUDE`s `bdcopy.inc`, one labelled `DO` loop per block, copying
 the goldens into the `COMMON` windows. In the **live** solver these writes are
 **idempotent** (the linked `bd/` units already placed the identical bit patterns at
@@ -243,17 +248,29 @@ Every `blkinit.f` write is therefore provably `BTSTRP`/`DBMINT`-untouched and he
 
 ### Bootstrap-owned and zero-only exclusions
 
-- **Bootstrap-owned (7):** `/SEM/`, `/SYSTEM/` (machine cells), `/TWO/`,
-  `/MACHIN/`, `/LHPWX/`, `/XXREAD/`, `/ZZZZZZ/`. These hold link control,
-  machine constants, or scratch state that `BTSTRP`/`DBMINT` own at runtime;
-  reproducing them would clobber live bootstrap values and violate the
-  bit-for-bit-equivalence mandate (AAP §0.7.1). They are deliberately excluded.
-- **Zero-only (13 not also bootstrap-owned):** including `/GINOX/` (see below),
-  `/FEERIM/`, `/NUMTPX/`, `/OPINV/`, the `/SMA1*/` and `/SMA2*/` scratch
-  families, `/STAPID/`, `/STIME/`, `/XECHOX/`, `/XXFIAT/`. Each is seeded only
-  with zeros by `bd`, so default zero-init (unit model) and the linked `bd/`
-  units (live model) already reproduce them exactly — no explicit write is
-  needed, and `initval.f` confirms `NDIV = 0` over the R set without them.
+The **15 source-level exclusions** (89 − 74 R set) split into two principled
+groups. Note `/SEM/` and `/TWO/` are **not** in this list — they are part of the
+**74-block R set**, with only their bootstrap-owned *words* skipped (`/SEM/`
+words 2-3 `MASK2`/`MASK3`; `/TWO/` word 1 `TWO(1)` and word 33 `MZERO`), while
+their nonzero non-bootstrap words are reproduced and validated bit-for-bit.
+
+- **Bootstrap-/runtime-owned (5):** `/MACHIN/`, `/LHPWX/`, `/XXREAD/`, `/SYSTEM/`
+  (its machine cells), and `/GINOX/` (additionally a header-layout collision —
+  see below). These hold link control, machine constants, or scratch state that
+  `BTSTRP`/`DBMINT` own at runtime; reproducing them would clobber live bootstrap
+  values and violate the bit-for-bit-equivalence mandate (AAP §0.7.1). They are
+  deliberately excluded.
+- **Zero-only (10):** `/NUMTPX/`, `/STAPID/`, `/STIME/`, `/XECHOX/`, `/XXFIAT/`,
+  and the `/SMA1*/`/`/SMA2*/` scratch families (`/SMA1BK/`, `/SMA1DP/`,
+  `/SMA1ET/`, `/SMA2BK/`, `/SMA2ET/`). Each is seeded only with zeros by `bd`, so
+  default zero-init (unit model) and the linked `bd/` units (live model) already
+  reproduce them exactly — no explicit write is needed, and `initval.f` confirms
+  `NDIV = 0` over the R set without them.
+
+(An `nm -S` object scan additionally surfaces `/ZZZZZZ/`, `/FEERIM/`, and
+`/OPINV/`; these are **access-only** blocks referenced by the non-BLOCK-DATA
+`bd/ferfbd.f` `SUBROUTINE`, seed no `DATA`, and are therefore outside the 89
+source-level BLOCK-DATA universe — see the 89-vs-92 note above.)
 
 #### `/GINOX/` name collision — DO NOT WRITE
 
@@ -370,7 +387,7 @@ exactly. Its contract:
   tolerance is the regression comparator's job for *solver output*, not init
   goldens.)
 - **Complete R-set coverage.** `initval.f` `INCLUDE`s `bddata.inc` + `bdgold.inc` +
-  `bdcomp.inc`, so it validates the **same** 72 blocks / 31,316 words that
+  `bdcomp.inc`, so it validates the **same** 74 blocks / 31,382 words that
   `blkinit.f` writes, plus the 42-cell `/SYSTEM/` safe subset — there is **no
   uncovered-but-counted-clean** state, so a false pass is structurally impossible.
 - **Reporting via `DIAGLOG`.** Divergences and scope accounting are reported
@@ -384,7 +401,7 @@ exactly. Its contract:
   | `9150` | `/GINOX/` excluded — header-layout collision + `DBMINT`-owned | `0` |
   | `9160` | Count of header-uncovered `bd/`-seeded blocks remaining | `0` (= NONE) |
   | `9170` | `/SYSTEM/` config cells validated | `NVALID` |
-  | `9171` | `bd/` R-set blocks validated | `72` |
+  | `9171` | `bd/` R-set blocks validated | `74` |
 
   Note `9160` now reports **`0` (UNCOVERED BD BLOCKS = NONE)** — the honest
   accounting that replaced the prior `NUNRCH = 88` informational counter, which had
@@ -434,12 +451,17 @@ encapsulation-only, bit-for-bit deliverable.
    the source of the harmless linker size note when the validator is linked against
    the real `bd/` objects). The related `KTIME`-from-`/SYSTEM/` question for the
    dispatcher is documented in `modern/docs/dispatch_modernization_report.md`.
-5. **Count basis.** The **92-block** figure is the authoritative linker-level count
-   (`nm -S` over the compiled `bd/` objects, which captures `EQUIVALENCE`
-   extensions automatically). An earlier active-`COMMON`-statement count of
-   **89/90** (the `±1` being the dormant, commented-out `/DESCRP/`) reflects a
-   source-statement basis; the linker-level partition (72 R-set + 20 excluded = 92)
-   is authoritative for reproduction.
+5. **Count basis.** The authoritative figure for reproduction is the **89-block**
+   source-level count over the 39 `BLOCK DATA` units, which yields the partition
+   **74 R-set + 15 excluded = 89**. An `nm -S` scan over *all* compiled `bd/`
+   objects reports **92**: it additionally counts 3 `COMMON` symbols (`/ZZZZZZ/`,
+   `/OPINV/`, `/FEERIM/`) that are declared only in the non-`BLOCK DATA`
+   `bd/ferfbd.f` `SUBROUTINE` (which seeds no `DATA` and is correctly not linked
+   into the golden dump), so those 3 are *not* part of the seeded state the
+   initializer must reproduce. (A bare active-`COMMON`-statement count can also
+   read **89/90**, the `±1` being the dormant, commented-out `/DESCRP/`.) The
+   source-level 89 is authoritative; the 92 figure is purely an object-symbol
+   artifact of including `ferfbd.o` in the `nm` scan.
 
 ---
 
@@ -451,7 +473,8 @@ The init-mechanism success criteria (AAP §0.7.3), with status:
       hardcoded sequence) accepted; Candidate 2 (topological sort) rejected with the
       order-independent-pure-`DATA` rationale (AAP §0.7.6).
 - [x] **All `bd/` values reproduced bitwise.** `blkinit.f` reproduces the complete
-      **72-block / 31,316-word** R set plus the 42-cell `/SYSTEM/` safe config
+      **74-block / 31,382-word** R set (72 full blocks plus the bootstrap-
+      independent words of `/SEM/` and `/TWO/`) plus the 42-cell `/SYSTEM/` safe config
       subset; with `NASTRAN_INIT_VALIDATE=1`, `initval.f` reports **zero
       divergence** (`NDIV = 0`) in both the live and unit models. The
       principled-excluded blocks are bootstrap-owned or zero-only and are reproduced
@@ -485,8 +508,9 @@ The following existing artifacts were read as references / sources of truth and 
 - `bd/*.f` — the 39 `BLOCK DATA` units, especially `bd/semdbd.f` (principal, 757
   lines, 31 active `COMMON` blocks), `bd/dpdcbd.f` (`/DPDCOM/`), `bd/of1pbd.f`
   (`/OFPB1/`), `bd/readbd.f` (`/REGEAN/`, `/INVPWX/`, `/GIVN/`; `REAL` goldens),
-  and `bd/flbbd.f` (`/FLBFIL/`). The 31,316 golden words in `bdgold.inc` were
-  captured by linking these objects and dumping `COMMON` memory.
+  and `bd/flbbd.f` (`/FLBFIL/`). The 31,382 golden words in `bdgold.inc` (31,316
+  for the 72 full R-set blocks plus 66 for the `/SEM/` and `/TWO/` partial blocks)
+  were captured by linking these objects and dumping `COMMON` memory.
 - `mds/GINOX.COM`, `mis/SMCOMX.COM`, `mds/DSIOF.COM`, `bin/NASNAMES.COM` — the
   `*.COM` `INCLUDE` headers consulted for `/SYSTEM/`, `/GINOX/`, and reachability.
 - `bin/nastrn.f` — the bootstrap (`CALL BTSTRP`, `CALL DBMINT`, the inserted

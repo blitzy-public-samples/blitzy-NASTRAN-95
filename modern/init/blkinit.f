@@ -39,8 +39,8 @@ C     deterministic, inspectable, zero-overhead, and trivially matches
 C     the load-time BLOCK DATA semantics it mirrors.  The body below is
 C     a fixed, commented, ascending-cell-ordered series of assignments
 C     for the proven-safe /SYSTEM/ config subset, FOLLOWED BY the
-C     generated, bitwise reproduction of the full R set (72 bd-DATA
-C     blocks, 31316 words) via bdcopy.inc -- see MAINTAINER FLAG 2.
+C     generated, bitwise reproduction of the full R set (74 bd-DATA
+C     blocks, 31382 words) via bdcopy.inc -- see MAINTAINER FLAG 2.
 C
 C     -----------------------------------------------------------------
 C     WHY THIS IS CORRECT AND BIT-FOR-BIT SAFE (coexistence / duality)
@@ -153,9 +153,14 @@ C     deferred to modern/docs/pre_implementation_analysis.md.
 C
 C  MAINTAINER FLAG 2 -- COMPLETE bd-SEEDED REPRODUCTION (R SET) PLUS THE
 C  PRINCIPLED, AAP 0.7.1-MANDATED EXCLUSIONS
-C     The 39 bd/ BLOCK DATA units seed 92 distinct COMMON blocks.  This
-C     routine now reproduces ALL of them that it is bit-safe to reproduce
-C     -- the "R set" of 72 bd-DATA-seeded blocks (31316 words) -- through
+C     The 39 bd/ BLOCK DATA units seed 89 distinct COMMON blocks at the
+C     SOURCE level (an nm object scan that ALSO counts the non-BLOCK-DATA
+C     bd/ferfbd.f object reports 92; ferfbd.f is a SUBROUTINE that seeds
+C     no DATA -- see note at end of this flag).  This routine reproduces
+C     every block that it is bit-safe to reproduce -- the "R set" of 74
+C     bd-DATA-seeded blocks (31382 words): 72 reproduced in FULL, plus
+C     the BTSTRP-untouched fixed-data words of /SEM/ and /TWO/ (the only
+C     two further blocks that carry nonzero load-time DATA) -- through
 C     the generated headers bddata.inc (flat INTEGER COMMON views) +
 C     bdgold.inc (bitwise golden words) + bdcopy.inc (the copy loops in
 C     the body).  The goldens were captured by LINKING the real bd/
@@ -169,26 +174,39 @@ C     header-unreachable blocks.  The full bd/ -> COMMON table and the
 C     R-set membership are in modern/docs/pre_implementation_analysis.md
 C     and modern/docs/init_modernization_report.md.
 C
-C     DELIBERATELY EXCLUDED FROM THE COPY (NOT a deferral -- a bit-for-bit
-C     SAFETY REQUIREMENT under AAP 0.7.1, the HIGHEST-precedence rule):
-C       * BOOTSTRAP-OWNED blocks whose RUNTIME value is established by
-C         BTSTRP/CNSTDD/DBMINT (which run BEFORE this routine) and is NOT
-C         the bd load value -- /SEM/, /TWO/, /MACHIN/, /LHPWX/, /XXREAD/,
-C         /ZZZZZZ/, and the machine/runtime cells of /SYSTEM/.  Writing
-C         the bd value into these would CLOBBER the just-computed machine
-C         constants -- a regression.  /SYSTEM/ is therefore handled only
-C         on its proven-safe, BTSTRP/DBMINT-untouched 42-cell config
-C         subset above; the rest of /SYSTEM/ is left to the bootstrap.
+C     COPY POLICY for the bd blocks OUTSIDE the 72-block full set (NOT a
+C     deferral -- a bit-for-bit SAFETY REQUIREMENT under AAP 0.7.1, the
+C     HIGHEST-precedence rule):
+C       * PARTIALLY reproduced -- /SEM/ and /TWO/, the only two further
+C         bd blocks that carry NONZERO load-time DATA.  Their bootstrap-
+C         independent words ARE reproduced; their BTSTRP-owned words are
+C         SKIPPED.  /SEM/: copy word 1 (MASK) and words 4-33 (NAME(30)),
+C         skip words 2,3 (MASK2,MASK3).  /TWO/: copy words 2-32 (the
+C         powers-of-two table), skip word 1 (TWO(1)) and word 33 (MZERO).
+C         The skipped words are established by BTSTRP at runtime
+C         (bd/btstrp.f) and must not be clobbered.  (Done in bdcopy.inc;
+C         validated in bdcomp.inc with the identical word mask.)
+C       * FULLY bootstrap/runtime-owned blocks whose value is established
+C         by BTSTRP/CNSTDD/DBMINT (which run BEFORE this routine), or is
+C         runtime input/I-O state, and is NOT the bd load value --
+C         /MACHIN/, /LHPWX/, /XXREAD/, /ZZZZZZ/, and the machine/runtime
+C         cells of /SYSTEM/.  Writing the bd value into these would
+C         CLOBBER the just-computed machine constants -- a regression.
+C         /SYSTEM/ is therefore handled only on its proven-safe, BTSTRP/
+C         DBMINT-untouched 42-cell config subset above; the rest of
+C         /SYSTEM/ is left to the bootstrap.
 C       * /GINOX/ -- MAINTAINER FLAG 1 layout collision (and DBMINT owns
 C         the live disk-I/O state); seeds only zeros in bd, so excluded.
-C       * The bd blocks that contain NO DATA statement (e.g. /SMA1DP/,
-C         /SMA1BK/, /SMA2BK/, /STAPID/, /STIME/, /NUMTPX/, /OPINV/,
-C         /FEERIM/, /XXFIAT/, /XECHOX/) seed ZERO values only; their
-C         load-time content is the default-zero COMMON every executable
-C         already provides, so there is nothing to reproduce.
+C       * The bd BLOCK DATA blocks that contain NO nonzero DATA (e.g.
+C         /SMA1DP/, /SMA1BK/, /SMA1ET/, /SMA2BK/, /SMA2ET/, /STAPID/,
+C         /STIME/, /NUMTPX/, /XXFIAT/, /XECHOX/) seed ZERO values only;
+C         their load-time content is the default-zero COMMON every
+C         executable already provides, so there is nothing to reproduce.
 C     Note: bd/ferfbd.f is a SUBROUTINE (not a BLOCK DATA) and seeds
-C     nothing; its /SYSTEM/ and /ZZZZZZ/ declarations are access-only and
-C     it is correctly NOT linked into the golden dump.
+C     nothing; its /SYSTEM/, /ZZZZZZ/, /OPINV/ and /FEERIM/ declarations
+C     are access-only, and it is correctly NOT linked into the golden
+C     dump.  Its object is the reason an nm scan can report 92 COMMON
+C     symbols versus the 89 source-level BLOCK DATA COMMON blocks.
 C
 C  MAINTAINER FLAG 3 -- DIAGNOSTICS / OUTPUT POLICY
 C     BLKINIT is an INITIALIZER, not a validator or diagnostic routine,
@@ -238,8 +256,8 @@ C     one of the nine *.COM headers that declares /SYSTEM/.
       INCLUDE 'SMCOMX.COM'
 C
 C     -----------------------------------------------------------------
-C     FULL bd-SEEDED STATE REPRODUCTION -- the "R set" (72 COMMON blocks,
-C     31316 words).  bddata.inc declares clash-free flat INTEGER views
+C     FULL bd-SEEDED STATE REPRODUCTION -- the "R set" (74 COMMON blocks,
+C     31382 words).  bddata.inc declares clash-free flat INTEGER views
 C     (COMMON /blk/ KBnnnn) of EVERY bd-DATA-seeded block that is NOT
 C     bootstrap-owned; bdgold.inc holds the bitwise golden words captured
 C     by LINKING the 39 real bd/ BLOCK DATA objects and dumping COMMON
@@ -307,17 +325,20 @@ C     -----------------------------------------------------------------
   110 CONTINUE
 C
 C     -----------------------------------------------------------------
-C     R-SET REPRODUCTION -- populate the 72 bd-DATA-seeded, NON-bootstrap
+C     R-SET REPRODUCTION -- populate the 74 bd-DATA-seeded, NON-bootstrap
 C     COMMON blocks from the bitwise goldens (bdcopy.inc; one labelled DO
-C     loop per block, KBnnnn(IBD) = BDGOLD(off+IBD)).  In the LIVE solver
-C     these writes are IDEMPOTENT: the linked bd/ units already placed the
-C     identical bit patterns at load, so re-writing them changes nothing
-C     and never clobbers a bootstrap machine constant (proven: a BEFORE/
-C     AFTER COMMON snapshot around this copy, with the real bd/ objects
-C     linked, is byte-identical).  In the UNIT-TEST executable -- where
-C     the bd/ BLOCK DATA is not linked and COMMON starts zeroed -- these
-C     loops ACTIVELY initialize the full R set so initval.f reports
-C     NDIV = 0 over all 31316 reproduced words.
+C     loop per block, KBnnnn(IBD) = BDGOLD(off+IBD); the /SEM/ and /TWO/
+C     entries copy only their bootstrap-independent words).  In the LIVE
+C     solver these writes are IDEMPOTENT: the linked bd/ units already
+C     placed the identical bit patterns at load, so re-writing them
+C     changes nothing and never clobbers a bootstrap machine constant
+C     (proven: a BEFORE/AFTER COMMON snapshot around this copy, with the
+C     real bd/ objects linked, is byte-identical -- and the BTSTRP-owned
+C     /SEM/ and /TWO/ words are explicitly skipped, never written).  In
+C     the UNIT-TEST executable -- where the bd/ BLOCK DATA is not linked
+C     and COMMON starts zeroed -- these loops ACTIVELY initialize the
+C     full R set so initval.f reports NDIV = 0 over all 31382 reproduced
+C     words.
       INCLUDE 'bdcopy.inc'
 C
       RETURN

@@ -290,3 +290,19 @@ C     XXPARM (236 words)
       DO 7072 IBD = 1, 236
       KB0072(IBD) = BDGOLD(31080+IBD)
 7072  CONTINUE
+C     SEM (33 words) -- PARTIAL reproduction.  Copy word 1 (MASK=65535)
+C     and words 4-33 (NAME(30)); SKIP words 2,3 (MASK2,MASK3) which are
+C     owned by BTSTRP (bd/btstrp.f) -- writing them would clobber the
+C     just-computed bootstrap constants (AAP 0.7.1).  On the live solver
+C     these writes are idempotent; in the unit-test exe (bd not linked)
+C     they actively seed the safe /SEM/ words.
+      KB0073(1) = BDGOLD(31317)
+      DO 7073 IBD = 4, 33
+      KB0073(IBD) = BDGOLD(31316+IBD)
+7073  CONTINUE
+C     TWO (33 words) -- PARTIAL reproduction.  Copy words 2-32 (the
+C     powers-of-two table 2**30 .. 2**0); SKIP word 1 (TWO(1)) and word
+C     33 (MZERO), both owned by BTSTRP (bd/btstrp.f).
+      DO 7074 IBD = 2, 32
+      KB0074(IBD) = BDGOLD(31349+IBD)
+7074  CONTINUE

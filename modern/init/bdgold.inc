@@ -1,8 +1,16 @@
 C     bdgold.inc - golden bd load-time values (bitwise) for the R set.
-C     31316 32-bit words captured by linking the real bd BLOCK DATA
+C     31382 32-bit words captured by linking the real bd BLOCK DATA
 C     objects and dumping COMMON memory as integers (bitwise-exact by
 C     construction; covers REAL, INTEGER and Hollerith fields alike).
-      INTEGER BDGOLD(31316)
+C     Words 1-31316 are the 72 fully reproduced R-set blocks; words
+C     31317-31349 hold /SEM/ (33) and 31350-31382 hold /TWO/ (33), the
+C     two nonzero-DATA bd blocks newly added to the R set.  The BTSTRP-
+C     owned words inside /SEM/ (MASK2,MASK3 = block words 2,3) and /TWO/
+C     (TWO(1),MZERO = block words 1,33) are stored here for offset
+C     continuity but are deliberately NOT copied or compared (bdcopy.inc
+C     / bdcomp.inc skip them) so bootstrap machine constants are never
+C     clobbered (AAP 0.7.1).
+      INTEGER BDGOLD(31382)
       DATA (BDGOLD(I),I=1,85)/
      *32,30,29,23,22,
      *24,25,26,31,27,
@@ -6635,4 +6643,30 @@ C     construction; covers REAL, INTEGER and Hollerith fields alike).
      *538976288,538976288,538976288,538976288,538976288,
      *538976288,538976288,538976288,538976288,538976288,
      *538976288,538976288,538976288,0,0,
+     *0/
+C     -----------------------------------------------------------------
+C     /SEM/ (33 words) then /TWO/ (33 words) goldens, BDGOLD 31317-31382.
+C     /SEM/ = MASK,MASK2,MASK3,NAME(30):  MASK=65535; MASK2=MASK3=0
+C       (BTSTRP-owned -- stored here for offset continuity, NOT copied
+C       or compared); NAME(1-30) = Hollerith 4HNS01..4HNS30 as the
+C       integers produced by the bd object on this build platform
+C       (captured identically to the 72-block goldens above, so the
+C       reproduction is idempotent on the build platform by construction).
+C     /TWO/ = TWO(32),MZERO:  TWO(1)=0 and MZERO=0 (BTSTRP-owned, NOT
+C       copied/compared); TWO(2-32) = 2**30, 2**29, ... 2**0.
+C     -----------------------------------------------------------------
+      DATA (BDGOLD(I),I=31317,31382)/
+     *65535,0,0,825250638,842027854,
+     *858805070,875582286,892359502,909136718,925913934,
+     *942691150,959468366,808538958,825316174,842093390,
+     *858870606,875647822,892425038,909202254,925979470,
+     *942756686,959533902,808604494,825381710,842158926,
+     *858936142,875713358,892490574,909267790,926045006,
+     *942822222,959599438,808670030,0,1073741824,
+     *536870912,268435456,134217728,67108864,33554432,
+     *16777216,8388608,4194304,2097152,1048576,
+     *524288,262144,131072,65536,32768,
+     *16384,8192,4096,2048,1024,
+     *512,256,128,64,32,
+     *16,8,4,2,1,
      *0/

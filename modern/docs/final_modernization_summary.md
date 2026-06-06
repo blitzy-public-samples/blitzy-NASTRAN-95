@@ -38,8 +38,9 @@ functional.
 
 **Final status of the code-review findings:** all **nine** findings raised at
 the prior checkpoint (4 Critical, 5 Major) are **RESOLVED** — initialization now
-reproduces and bitwise-validates the **complete 72-block, 31,316-word
-`bd/`-DATA-seeded R set** (zero divergence), the init validator's guard is the
+reproduces and bitwise-validates the **complete 74-block, 31,382-word
+`bd/`-DATA-seeded R set** (72 full blocks plus the bootstrap-independent words of
+`/SEM/` and `/TWO/`; zero divergence), the init validator's guard is the
 literal first executable statement, `NASTRAN_INIT_VALIDATE` runs reliably in the
 real bootstrap, the unit and regression harnesses are configured to pass as
 delivered, the comparator handles the shipped `t01231a.out` NUL padding, the
@@ -73,8 +74,8 @@ for the `bd/`-seeded `COMMON` blocks (init) and to remove the dispatcher's inlin
 
 **Counts:** `modern/` = **11** `.f` + **5** `.inc` + **6** `.md`; `test/` =
 **13** `.f` + **13** `.ref` + **2** `.csh`; legacy **2** UPDATEs ⇒ **52 files**.
-The **5 new `.inc`** are: `modern/init/bddata.inc` (declares the 72 R-set
-`COMMON` windows), `modern/init/bdgold.inc` (the 31,316-word golden `DATA`),
+The **5 new `.inc`** are: `modern/init/bddata.inc` (declares the 74 R-set
+`COMMON` windows), `modern/init/bdgold.inc` (the 31,382-word golden `DATA`),
 `modern/init/bdcopy.inc` (copy goldens → windows, used by `blkinit.f`),
 `modern/init/bdcomp.inc` (per-word bitwise compare, used by `initval.f`), and
 `modern/dispatch/dispsem.inc` (the `/SEM/` + `/SYSTEM/` window for the dispatcher).
@@ -89,8 +90,8 @@ driver program.
 
 | # | Sev | File(s) | Finding (summary) | Resolution (delivered) |
 |---|-----|---------|-------------------|------------------------|
-| 1 | CRITICAL | `blkinit.f` | Only a 42-cell `/SYSTEM/` subset initialized; 88 `bd`-seeded blocks deferred. | `blkinit.f` now `INCLUDE`s `bddata.inc` (72 R-set `COMMON` windows) + `bdgold.inc` (31,316 golden words) + `bdcopy.inc`, reproducing **every** `bd`-DATA-seeded non-bootstrap value; bootstrap-owned blocks are principled-excluded (see Init status). |
-| 2 | CRITICAL | `initval.f` | `NUNRCH=88` informational accounting allowed a **false pass** (`NDIV=0` while most state uncompared). | False-pass removed; `initval.f` `INCLUDE`s `bdcomp.inc` for **per-word bitwise comparison** of the full 31,316-word R set; honest 9170/9171/9150/9160 accounting reports the validated counts, not a deferral. Live + unit proofs give **NDIV = 0**. |
+| 1 | CRITICAL | `blkinit.f` | Only a 42-cell `/SYSTEM/` subset initialized; 88 `bd`-seeded blocks deferred. | `blkinit.f` now `INCLUDE`s `bddata.inc` (74 R-set `COMMON` windows) + `bdgold.inc` (31,382 golden words) + `bdcopy.inc`, reproducing **every** `bd`-DATA-seeded non-bootstrap value (the 72 full blocks plus the bootstrap-independent words of `/SEM/` and `/TWO/`); bootstrap-owned blocks are principled-excluded (see Init status). |
+| 2 | CRITICAL | `initval.f` | `NUNRCH=88` informational accounting allowed a **false pass** (`NDIV=0` while most state uncompared). | False-pass removed; `initval.f` `INCLUDE`s `bdcomp.inc` for **per-word bitwise comparison** of the full 31,382-word R set; honest 9170/9171/9150/9160 accounting reports the validated counts, not a deferral. Live + unit proofs give **NDIV = 0**. |
 | 3 | MAJOR | `initval.f` | Guard not first executable: `CALL DIAGCTL(IDIAG)` preceded `IF (IDIAG.EQ.0) RETURN` (Binding R10). | Signature changed to `INITVAL(IDIAG, NDIV)`; `IDIAG` is now an **input argument**, so the guard `IF (IDIAG .EQ. 0) RETURN` is the **literal first executable statement** with no pre-acquisition. |
 | 4 | MAJOR | `nastinit.f` | `NASTRAN_INIT_VALIDATE` only ran when unit 3 was already open; in the real bootstrap `NASTINIT` runs **before** `OPEN(3,...)`, so validation never fired. | `nastinit.f` now safely self-opens unit 3 via `GETENV('LOGNM')` when not already open, then runs `INITVAL`, so `NASTRAN_INIT_VALIDATE=1` reliably executes in production and the regression harness. |
 | 5 | CRITICAL | `test/init/tinnas.f` | `CALL DIAGCTL` with no argument vs `SUBROUTINE DIAGCTL(IDIAG)` — stack-corrupting signature mismatch. | `INTEGER IDIAG` declared; call fixed to `CALL DIAGCTL(IDIAG)` and `CALL INITVAL(IDIAG, NDIV)` reconciled to the new signature. Driver runs **PASS: TINNAS**. |
@@ -125,19 +126,24 @@ Everything delivered is **default-off** (dormant until a toggle is set) and
   is the single entry point (invoked by one `CALL NASTINIT` immediately after
   `CALL DBMINT`); it reads `NASTRAN_LEGACY_INIT` via `GETENV` and orchestrates
   the explicit path. `blkinit.f` performs the explicit, ordered reproduction of
-  the **complete R set** — the **72** `bd/`-DATA-seeded **non-bootstrap**
-  `COMMON` blocks totaling **31,316 words** — reaching state through the
+  the **complete R set** — the **74** `bd/`-DATA-seeded **non-bootstrap**
+  `COMMON` blocks totaling **31,382 words** (72 full blocks plus the bootstrap-
+  independent words of `/SEM/` and `/TWO/`) — reaching state through the
   existing `SMCOMX.COM` header (for the `/SYSTEM/` config cells) plus the new
-  **AAP-approved coverage headers** `bddata.inc` (the 72 `COMMON` windows),
-  `bdgold.inc` (the 31,316 golden words as `DATA`), and `bdcopy.inc` (copy
+  **AAP-approved coverage headers** `bddata.inc` (the 74 `COMMON` windows),
+  `bdgold.inc` (the 31,382 golden words as `DATA`), and `bdcopy.inc` (copy
   goldens → windows). `initval.f` bitwise-compares the reproduced state against
   the same goldens via `bdcomp.inc`, incrementing `NDIV` per diverging word.
-  **Bootstrap-owned blocks are deliberately and principled-excluded** — `/SEM/`,
-  `/TWO/`, `/MACHIN/`, `/LHPWX/`, `/XXREAD/`, `/ZZZZZZ/`, `/GINOX/`, and the
-  machine-dependent `/SYSTEM/` cells (only the **42-cell safe config subset** of
-  `/SYSTEM/` is written) — because those are populated by `BTSTRP` / `DBMINT`
-  before `NASTINIT` runs and writing them would clobber live bootstrap state
-  (AAP §0.7.1 numerical-equivalence mandate). The 39 `bd/` units remain linked
+  `/SEM/` and `/TWO/` — the only two further blocks carrying nonzero `DATA` — are
+  reproduced on their **bootstrap-independent words only** (`/SEM/` `MASK` + `NAME`;
+  `/TWO/` the powers-of-two table), skipping the BTSTRP-owned words (`/SEM/`
+  `MASK2,MASK3`; `/TWO/` `TWO(1),MZERO`). The remaining blocks are **deliberately
+  and principled-excluded** — `/MACHIN/`, `/LHPWX/`, `/XXREAD/`, `/ZZZZZZ/`,
+  `/GINOX/`, the machine-dependent `/SYSTEM/` cells (only the **42-cell safe
+  config subset** of `/SYSTEM/` is written), and the 10 all-zero-`DATA` blocks —
+  because those are populated by `BTSTRP` / `DBMINT` (or are default-zero) and
+  writing the bootstrap-owned ones would clobber live bootstrap state (AAP §0.7.1
+  numerical-equivalence mandate). The 39 `bd/` units remain linked
   and unmodified as the source of truth for validation and rollback.
   **Verified:** live model (validator + real `bd` objects) and unit model
   (`blkinit` reproduces, no `bd` linked) both yield **`NDIV = 0`**, idempotent.
@@ -199,18 +205,49 @@ Everything delivered is **default-off** (dormant until a toggle is set) and
   `initval.f`, `stateval.f`, and `dispval.f` — verifiable by inspection.
   `diagctl.f` is the deliberate guard-exempt exception, because it is the
   routine that *computes* `IDIAG`.
-- **(d) No new global state in source bodies.** Every `modern/*.f` body contains
-  **zero literal `COMMON` and zero `EQUIVALENCE`**; all `COMMON` access is
-  `INCLUDE`-only — through the existing nine `*.COM` headers and, for the
-  `bd/`-coverage and dispatch-window cases, through the new project `.inc`
-  headers introduced as the **AAP-approved header coverage** the prior review
-  explicitly endorsed (verifiable by `grep`).
+- **(d) No new global state in source bodies; new `.inc` headers declare only
+  pre-existing block names.** The AAP §0.6.4 compliance criterion is stated as a
+  literal-grep test scoped to source bodies: *"no `COMMON/` or `EQUIVALENCE`
+  literal should appear in `modern/*.f` outside an `INCLUDE`."* Against that
+  criterion the implementation passes exactly: every `modern/*.f` body contains
+  **zero literal `COMMON` and zero literal `EQUIVALENCE`** (verifiable by
+  `grep -RInE '^[[:space:]]*(COMMON|EQUIVALENCE)' modern --include='*.f'` →
+  empty). To be precise and avoid narrowing the claim, the **new project `.inc`
+  headers do contain `COMMON` declarations**: `bddata.inc` declares the 74
+  `bd/`-coverage windows (`KB0001`…`KB0072` plus the new `KB0073`/`KB0074` for
+  `/SEM/` and `/TWO/`), and `dispsem.inc` declares `/SEM/` + `/SYSTEM/` for the
+  dispatcher — **76 active `COMMON` declarations across the two `.inc` files
+  (74 in `bddata.inc` + 2 in `dispsem.inc`)**.
+  The defensible compliance point is therefore *not* "zero `COMMON` anywhere"
+  but the two facts that actually hold: **(i)** every block name these headers
+  declare **already exists** in the legacy tree (each `KBnnnn` window maps a
+  `bd/`-seeded block, `/SEM/` is declared in `bd/semdbd.f` and `mis/xsem00.f`,
+  `/SYSTEM/` in `mis/SMCOMX.COM` and two other headers) — so **zero new
+  `COMMON` block name** is introduced and no new global storage is created; and
+  **(ii)** **zero new `EQUIVALENCE`** appears anywhere under `modern/`. State
+  that is reachable through the existing nine `*.COM` headers is accessed that
+  way (e.g. `stateacc.f`, the `/SYSTEM/` config cells); the new `.inc` headers
+  exist only for the `bd/`-coverage and dispatch-window blocks that the nine
+  shipped `*.COM` files do not expose. This honest framing — `.f` bodies clean,
+  `.inc` headers declaring only pre-existing block names with no new
+  `EQUIVALENCE` — is the policy enforced and the policy documented.
 - **(e) Frozen / minimal edits.** `mis/xsem00.f` is frozen (unchanged);
   `bin/nastrn.f` receives **exactly one** inserted line (`CALL NASTINIT`,
   `+1 / -0`); `bin/linknas` gains only the modern build edges (compile/archive
   the modern objects, add `-I` for the new `.inc`, keep all 39 `bd/` objects
   explicitly named). The 39 `bd/*.f` units and the nine `*.COM` headers are
-  retained byte-for-byte intact.
+  retained byte-for-byte intact. **Build-script acceptance specifics:**
+  `bin/linknas` is stored with **LF line endings** so that `tcsh -n -f
+  bin/linknas` parses clean (`rc=0`). All **11** modern objects are compiled and
+  archived into `nastlib.a`, but the executable link line names **10** of them —
+  `nastinit.o blkinit.o initval.o stateacc.o stateval.o disptbl.o dispval.o
+  diagctl.o diaglog.o outcomp.o` — deliberately **excluding `regval.o`**, which
+  is a **standalone `PROGRAM REGVAL`** developer regression tool, not a solver
+  subroutine; naming it on the solver link line would introduce a second main
+  program. The resulting object/library token count on the link line is
+  therefore **51** (`nastrn.o` + 39 `bd/` + 10 modern + `nastlib.a`), not 52;
+  `regval.o` is built and archived for standalone use but is correctly absent
+  from `nastrn.exe`.
 - **(f) Diagnostic / `MESAGE` codes confined to 9001–9999.** `disptbl.f` raises
   its unmapped-code fatal in the **9300–9399** sub-band (`-9301`); `diaglog.f`
   emits only in-band codes (out-of-band values remapped to `9999`); the init /
@@ -233,7 +270,7 @@ dispatch cutover) is annotated as such.
 | Mechanism | Before | After (delivered) |
 |-----------|--------|-------------------|
 | **Dispatch** | 22-stage cascading computed-`GO TO` ladder, `MODX` 1–217, ~190 targets, embedded in the frozen `mis/xsem00.f` | Single auditable `IF` / `ELSE IF` table (`disptbl.f`) with an automated coverage validator (`dispval.f`) asserting **217 / 193 / 188 / 21 / 3**, zero duplicate/unmapped. Live cutover deferred by the `xsem00.f` freeze. |
-| **Init** | 39 implicit, link-line-order-dependent `BLOCK DATA` objects — each must be explicitly extracted (`ar x`) and named on the `f77` link line | One explicit `CALL NASTINIT` path (`nastinit.f` + `blkinit.f`) reproducing the **complete 72-block / 31,316-word** R set, with a **bitwise** validator (`initval.f`) proving **`NDIV = 0`** |
+| **Init** | 39 implicit, link-line-order-dependent `BLOCK DATA` objects — each must be explicitly extracted (`ar x`) and named on the `f77` link line | One explicit `CALL NASTINIT` path (`nastinit.f` + `blkinit.f`) reproducing the **complete 74-block / 31,382-word** R set (72 full blocks + the bootstrap-independent words of `/SEM/` and `/TWO/`), with a **bitwise** validator (`initval.f`) proving **`NDIV = 0`** |
 | **State** | Ad-hoc per-routine `COMMON` re-declarations scattered across modules | Single-responsibility accessors (`stateacc.f`) over the existing headers — zero new `COMMON` / `EQUIVALENCE` in source bodies, verifiable by `grep`; consistency validator (`stateval.f`) |
 | **Regression** | No automated equivalence check | Field-by-field, NUL-safe golden-master comparator (`outcomp.f`) plus a one-command harness (`run_all.csh`) reusable for every future modernization phase |
 | **Safety** | n/a | 100% feature-flag gating ⇒ rollback is a configuration change with **zero recompilation**; the default run is bit-identical to APR.95 |
@@ -318,8 +355,9 @@ deliverables, exercised by the developer, not run by the modernization tooling):
 - **Init bitwise equivalence.** Linking `initval.o` with the real `bd/` objects
   (live model) yields **`NDIV = 0`**; linking `blkinit.o` + `initval.o` with no
   `bd/` objects (unit model) yields **`NDIV = 0`** on two consecutive calls
-  (idempotent). `BDGOLD(31316)` equals the sum of the 72 `COMMON` window extents
-  in `bddata.inc` exactly.
+  (idempotent). `BDGOLD(31382)` equals the sum of the 72 full `COMMON` window
+  extents in `bddata.inc` (31,316) plus the two 33-word `/SEM/` and `/TWO/`
+  partial blocks (66) = 31,382 exactly.
 - **Comparator.** `t01231a.out` vs itself ⇒ `IRET = 0`, `NDIFF = 0`; a clean
   deck vs a different deck ⇒ `NDIFF > 0` (real diffs detected); a synthetic
   non-provenance NUL line ⇒ `IRET = 1` (genuine binary rejected); the legitimate

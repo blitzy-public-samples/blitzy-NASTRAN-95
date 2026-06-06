@@ -450,7 +450,28 @@ This finding (consumed by `init_modernization_report.md` and `blkinit.f`) means 
 - **`/GINOX/` name collision.** The `bd/semdbd.f` `/GINOX/` view differs from the `mds/GINOX.COM` layout `LGINOX,IDSLIM,MDSFCB(3,89),LENSOF(10)`; the two are **not** the same variable list, so `/GINOX/` must **not** be blindly written through `mds/GINOX.COM`.
 - **`/SYSTEM/` clobber caution.** The `/SYSTEM/` machine cells are populated at bootstrap by `BTSTRP` and `DBMINT` `[bin/nastrn.f:L32,L44]`; the initializer must **not** clobber them.
 
-Therefore the **87** header-unreachable blocks are **deferred and flagged for maintainer confirmation** in this phase. This analysis surfaces precisely which `bd/` COMMONs are `INCLUDE`-reachable (2) versus not (87), so maintainers can decide whether to introduce dedicated modern headers in a future phase. Deferring honors the hard rule **"zero new COMMON / zero new EQUIVALENCE outside an `INCLUDE`"** — the modern initializer adds no COMMON declaration of its own and only validates/writes the two header-reachable blocks with the cautions above.
+**Pre-implementation recommendation (this document).** This analysis surfaces precisely which `bd/` COMMONs are reachable through the *nine existing* `*.COM` headers (**2** — `/GINOX/`, `/SYSTEM/`) versus not (**87**). Using only those nine headers, the initializer could safely reach `/SYSTEM/` (on its safe cells) alone; the remaining blocks were flagged for a maintainer decision on whether to introduce dedicated modern coverage headers in a later step.
+
+> **Delivered-state update (supersedes the "defer 87" recommendation above).**
+> The implementation adopted exactly the *"introduce dedicated modern coverage
+> headers"* option the code review endorsed, rather than deferring. `blkinit.f`
+> and `initval.f` now **reproduce and bitwise-validate 74** of the 89 source-level
+> `bd/` blocks — the **R set** (72 blocks in full, plus the bootstrap-independent
+> words of `/SEM/` and `/TWO/`, the only two further nonzero-`DATA` blocks) —
+> through **project-internal coverage headers** (`bddata.inc`, `bdgold.inc`,
+> `bdcopy.inc`, `bdcomp.inc`), reaching state by `INCLUDE` only. Consequently the
+> initializer does **not** "write only the two header-reachable blocks": it
+> explicitly **avoids** `/GINOX/` (the layout collision noted in E.2) and the
+> `/SYSTEM/` machine cells, and reproduces the safe `/SYSTEM/` config subset (42
+> cells) separately. The remaining **15** blocks (89 − 74) are principled
+> exclusions — bootstrap/runtime-owned (`/MACHIN/`, `/LHPWX/`, `/XXREAD/`, the
+> `/SYSTEM/` machine cells, `/GINOX/`) plus 10 zero-only blocks — documented in
+> `init_modernization_report.md` (the full **74 + 15 = 89** partition). On the
+> COMMON rule: the coverage headers **do** declare `COMMON` for these pre-existing
+> `bd/` block names, which is compliant with AAP §0.6.4 — that rule scopes the
+> prohibition to `COMMON`/`EQUIVALENCE` literals in `modern/*.f` **bodies**
+> "outside an `INCLUDE`", and every `modern/*.f` body is `COMMON`-free; **no new
+> block name and no new `EQUIVALENCE`** is introduced.
 
 ---
 

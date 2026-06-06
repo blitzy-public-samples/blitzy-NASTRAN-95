@@ -15,8 +15,13 @@ C     them inline.  To remove that inline COMMON re-declaration from the
 C     routine body, those declarations are centralized HERE, in a
 C     dedicated AAP-approved modern header, and pulled in by a single
 C     INCLUDE 'dispsem.inc' -- exactly the include-based state-access
-C     policy already used by modern/init/bddata.inc.  This introduces
-C     NO new COMMON block (both /SEM/ and /SYSTEM/ pre-exist) and NO
+C     policy already used by modern/init/bddata.inc.  AAP 0.6.4 makes
+C     this explicit: its VERIFIABLE criterion is that "no COMMON/ or
+C     EQUIVALENCE literal should appear in modern/*.f outside an
+C     INCLUDE" -- so COMMON reached THROUGH an INCLUDE (as here) is
+C     compliant, and disptbl.f's body is correspondingly COMMON-free
+C     (grep-verifiable).  This introduces NO new COMMON block (both
+C     /SEM/ and /SYSTEM/ pre-exist in the frozen mis/xsem00.f) and NO
 C     EQUIVALENCE; it only relocates two existing declarations into a
 C     header so the routine body holds no literal COMMON statement.
 C

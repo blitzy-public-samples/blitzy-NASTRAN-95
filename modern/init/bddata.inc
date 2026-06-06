@@ -1,5 +1,9 @@
-C     bddata.inc - flat INTEGER COMMON-block views for the 72 bd-seeded
-C     blocks reproduced by the modern explicit initializer (the R set).
+C     bddata.inc - flat INTEGER COMMON-block views for the 74 bd-seeded
+C     blocks reproduced by the modern explicit initializer (the R set):
+C     72 blocks reproduced in FULL, plus the BTSTRP-untouched fixed-data
+C     words of /SEM/ (MASK + NAME table) and /TWO/ (the powers-of-two
+C     table) -- the only two bd blocks outside the 72-block set that
+C     carry NONZERO load-time DATA (see blkinit.f MAINTAINER FLAG 2).
 C     Generated from authoritative COMMON sizes (nm -S of compiled bd
 C     objects).  No EQUIVALENCE; no new COMMON beyond these existing bd
 C     block names.  Array names KBnnnn are private and clash-free.
@@ -75,4 +79,26 @@ C     block names.  Array names KBnnnn are private and clash-free.
       COMMON /XREADX/ KB0070(43)
       COMMON /XVPS  / KB0071(600)
       COMMON /XXPARM/ KB0072(236)
+C     -----------------------------------------------------------------
+C     /SEM/ and /TWO/ -- the only two bd blocks OUTSIDE the 72-block full
+C     set that carry NONZERO load-time DATA, so they are reproduced here
+C     (PARTIALLY -- only the words BTSTRP does not own; see blkinit.f and
+C     bdcopy.inc).  /SEM/ = MASK,MASK2,MASK3,NAME(30) = 33 words; /TWO/ =
+C     TWO(32),MZERO = 33 words (authoritative sizes, bd/semdbd.f).
+      COMMON /SEM   / KB0073(33)
+      COMMON /TWO   / KB0074(33)
 C     KBnnnn arrays begin with K and are INTEGER by default (I-N rule).
+C     -----------------------------------------------------------------
+C     AAP COMMON-POLICY COMPLIANCE (0.6.4 / 0.7.2 / 0.7.3).  The COMMON
+C     declarations in this include are NOT a breach of the zero-new-
+C     COMMON rule:  (1) AAP 0.6.4 scopes that rule to ".f" BODIES -- "no
+C     COMMON/ or EQUIVALENCE literal should appear in modern/*.f outside
+C     an INCLUDE" -- which this file satisfies (every modern/*.f body is
+C     COMMON/EQUIVALENCE-free; grep-verifiable).  (2) The block names
+C     declared here (/BITPOS/, /DPDCOM/, /GPTA1/, /SEM/, /TWO/, ...) are
+C     PRE-EXISTING legacy bd block names; NONE is a new global, and NO
+C     EQUIVALENCE is introduced.  (3) Reproducing the bd load values
+C     bitwise (AAP 0.7.3 success criterion) is impossible without naming
+C     these blocks, and they are NOT declared by any of the nine *.COM
+C     headers, so an INCLUDE such as this is the AAP-sanctioned access
+C     path.  See modern/docs/state_modernization_report.md.

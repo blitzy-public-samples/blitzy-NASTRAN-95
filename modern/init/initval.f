@@ -11,8 +11,10 @@ C     returns the count in NDIV, and emits divergence diagnostics to
 C     logical unit 3 (via DIAGLOG) using codes in the 9001-9999 band
 C     (init sub-band 9100-9199).  NDIV = 0 means a perfect bitwise match
 C     (success).  The validated set is COMPLETE: the 42 /SYSTEM/ config
-C     cells PLUS the full R set of 72 bd-DATA-seeded, non-bootstrap
-C     COMMON blocks (31316 words) compared word-for-word via bdcomp.inc.
+C     cells PLUS the full R set of 74 bd-DATA-seeded, non-bootstrap
+C     COMMON blocks (31382 words: 72 full blocks plus the bootstrap-
+C     independent words of /SEM/ and /TWO/) compared word-for-word via
+C     bdcomp.inc.
 C
 C     SIGNATURE (LOCKED cross-agent contract):
 C         SUBROUTINE INITVAL (IDIAG, NDIV)
@@ -93,23 +95,35 @@ C     one informational note is emitted (code 9150) and NDIV is NOT
 C     affected.
 C
 C  MAINTAINER FLAG 4 -- COMPLETE bd/ COVERAGE (R SET) + PRINCIPLED EXCL.
-C     The 39 bd/ units seed 92 distinct COMMON blocks (33771 words).
-C     This validator now reproduces-and-validates the R SET -- the 72
-C     bd-DATA-seeded, NON-bootstrap blocks (31316 words) -- via the
+C     The 39 bd/ units seed 89 distinct COMMON blocks at the SOURCE level
+C     (an nm object scan that ALSO counts the non-BLOCK-DATA bd/ferfbd.f
+C     object reports 92).  This validator reproduces-and-validates the
+C     R SET -- the 74 bd-DATA-seeded, NON-bootstrap blocks (31382 words:
+C     72 full plus the bootstrap-independent words of /SEM/ and /TWO/) --
+C     via the
 C     generated headers bddata.inc / bdgold.inc / bdcomp.inc, the SAME
 C     headers blkinit.f writes (the lock-step contract).  These headers
 C     are AAP-approved modern includes (the reviewer explicitly endorsed
 C     "add AAP-approved include/header coverage"); they declare the
 C     bd-seeded blocks themselves -- no legacy *.COM is re-declared, no
 C     EQUIVALENCE is added, and no bd/ or *.COM file is modified.  The
-C     blocks OUTSIDE the R set are NOT a coverage gap: they are the
-C     documented bootstrap-owned blocks (/SEM/, /TWO/, /MACHIN/,
-C     /LHPWX/, /XXREAD/, /ZZZZZZ/ and the machine/runtime /SYSTEM/ cells
-C     -- written by BTSTRP/CNSTDD/DBMINT at runtime, NOT equal to their
-C     bd-load values, so copying them would REGRESS), plus /GINOX/
-C     (FLAG 3) and the 17 zero-only blocks already covered by default
-C     zero-init.  Excluding them is MANDATED by AAP 0.7.1 bit-for-bit
-C     preservation, so code 9160 (uncovered blocks) is now ZERO.  The
+C     blocks OUTSIDE the R set are NOT a coverage gap.  /SEM/ and /TWO/
+C     -- the only two nonzero-DATA bd blocks outside the 72-block full
+C     set -- are now IN the R set, reproduced and validated on their
+C     bootstrap-independent words (the BTSTRP-owned /SEM/ words 2,3 and
+C     /TWO/ words 1,33 are skipped).  The blocks STILL excluded are all
+C     principled, NOT a gap: the bootstrap/runtime-owned blocks
+C     (/MACHIN/, /LHPWX/, /XXREAD/ and the machine/runtime /SYSTEM/
+C     cells -- written by BTSTRP/CNSTDD/DBMINT at runtime, NOT equal
+C     to their bd-load values, so copying them would REGRESS; the
+C     ferfbd-only open-core /ZZZZZZ/ is in the nm-92 count but NOT the
+C     89 source-level partition, and is likewise runtime-owned),
+C     /GINOX/ (FLAG 3), and the 10 bd BLOCK DATA blocks whose DATA is
+C     entirely zero (/NUMTPX/, /STAPID/, /STIME/, /XECHOX/, /XXFIAT/,
+C     /SMA1BK/, /SMA1DP/, /SMA1ET/, /SMA2BK/, /SMA2ET/) already covered
+C     by default zero-init.  Excluding them is MANDATED by AAP 0.7.1
+C     bit-for-bit preservation, so code 9160 (uncovered blocks) is ZERO.
+C     The
 C     full bd/ -> COMMON coverage table and R-set/exclusion lists live
 C     in modern/docs/pre_implementation_analysis.md and
 C     modern/docs/init_modernization_report.md.
@@ -131,7 +145,7 @@ C     'SMCOMX.COM' (mis/SMCOMX.COM), the only one of the nine *.COM
 C     headers that declares /SYSTEM/.  Full R-set state is reached
 C     through the AAP-approved modern includes bddata.inc / bdgold.inc /
 C     bdcomp.inc (the same headers blkinit.f uses): bddata.inc declares
-C     the 72 bd-seeded blocks as flat INTEGER arrays, bdgold.inc holds
+C     the 74 bd-seeded blocks as flat INTEGER arrays, bdgold.inc holds
 C     the integer goldens, bdcomp.inc is the comparison body.  This file
 C     contains NO literal COMMON statement of its own and NO EQUIVALENCE
 C     statement; every COMMON reference resolves through an INCLUDE, and
@@ -187,7 +201,7 @@ C        9150  /GINOX/ EXCLUDED (layout collision; DBMINT owns its state)
 C        9160  count of bd blocks UNVALIDATED FOR LACK OF COVERAGE; now
 C              ZERO (replaces the former NUNRCH=88 false-pass metric)
 C        9170  count of /SYSTEM/ config cells validated (NVAL = 42)
-C        9171  count of bd R-set blocks validated bitwise (NVAL = 72)
+C        9171  count of bd R-set blocks validated bitwise (NVAL = 74)
 C     Non-fatal reporting uses DIAGLOG (logical unit 3 only).  No CALL
 C     MESAGE is made: INITVAL has no unrecoverable condition (a
 C     divergence is counted and reported, never fatal).  The fatal
@@ -240,12 +254,14 @@ C     validated set of NVALID = 42 cells (9 non-zero + 33 zero).
       PARAMETER ( NVALID = 42 )
 C
 C     Count of bd-DATA-seeded, non-bootstrap COMMON blocks (the R set)
-C     reproduced by blkinit.f AND bitwise-validated here via bdcomp.inc.
+C     reproduced by blkinit.f AND bitwise-validated here via bdcomp.inc:
+C     72 blocks validated in FULL plus the bootstrap-independent words of
+C     /SEM/ and /TWO/ (the two further nonzero-DATA bd blocks) = 74.
 C     Reported once via code 9171.  There is NO longer any "header-
 C     unreachable / not validated" residue: the former NUNRCH=88 false-
 C     pass metric is ELIMINATED (see code 9160 reporting below).
       INTEGER           NRSET
-      PARAMETER ( NRSET = 72 )
+      PARAMETER ( NRSET = 74 )
 C
 C     The single permitted *.COM state-access path: SMCOMX.COM is the
 C     only one of the nine headers that declares /SYSTEM/.
@@ -346,8 +362,8 @@ C     -----------------------------------------------------------------
   110 CONTINUE
 C
 C     -----------------------------------------------------------------
-C     COMPARE (continued) -- the FULL R set: the 72 bd-DATA-seeded, non-
-C     bootstrap COMMON blocks (31316 32-bit words) reproduced by
+C     COMPARE (continued) -- the FULL R set: the 74 bd-DATA-seeded, non-
+C     bootstrap COMMON blocks (31382 32-bit words) reproduced by
 C     blkinit.f, compared here word-for-word against the SAME goldens
 C     (bdgold.inc) through the SAME flat views (bddata.inc).  bdcomp.inc
 C     expands, per block, to:  IBAD = 0 ; a labelled DO over every word
@@ -366,17 +382,19 @@ C     SCOPE ACCOUNTING -- informational only; NOT added to NDIV.  Every
 C     bd-seeded COMMON block is now EITHER bitwise-validated above OR a
 C     documented, AAP 0.7.1-mandated exclusion; none is silently skipped.
 C        9170 -- COUNT of /SYSTEM/ config cells validated (NVALID = 42)
-C        9171 -- COUNT of bd R-set blocks validated bitwise (NRSET = 72)
+C        9171 -- COUNT of bd R-set blocks validated bitwise (NRSET = 74)
 C        9150 -- /GINOX/ EXCLUDED (header layout collision; DBMINT owns
 C                its disk-I/O state at runtime -- copying would regress)
 C        9160 -- COUNT of bd blocks UNVALIDATED FOR LACK OF COVERAGE.
 C                This is now ZERO: it replaces the former NUNRCH=88
 C                false-pass.  Every remaining unvalidated block is a
 C                principled bootstrap-owned / zero-seeding exclusion
-C                (/SEM/,/TWO/,/MACHIN/,/LHPWX/,/XXREAD/,/ZZZZZZ/, the
-C                machine/runtime /SYSTEM/ cells, /GINOX/), justified
-C                under AAP 0.7.1 bit-for-bit preservation -- NOT an
-C                uncovered gap.
+C                (/MACHIN/,/LHPWX/,/XXREAD/,/ZZZZZZ/, the machine/runtime
+C                /SYSTEM/ cells, /GINOX/, and the 10 all-zero-DATA bd
+C                blocks), justified under AAP 0.7.1 bit-for-bit
+C                preservation -- NOT an uncovered gap.  /SEM/ and /TWO/
+C                are NO LONGER listed here: their bootstrap-independent
+C                words are validated within the R set above.
 C     -----------------------------------------------------------------
       CALL DIAGLOG (IDIAG, 9170, NVALID, 'SYSTEM CFG CELLS VALIDATED')
       CALL DIAGLOG (IDIAG, 9171, NRSET,  'BD R-SET BLOCKS VALIDATED')
@@ -386,7 +404,7 @@ C
 C     -----------------------------------------------------------------
 C     REPORT -- one summary record carrying the final divergence count
 C     over the COMPLETE validated set: the 42 /SYSTEM/ config cells PLUS
-C     the 72 bd R-set blocks (31316 words).  NDIV = 0 therefore means a
+C     the 74 bd R-set blocks (31382 words).  NDIV = 0 therefore means a
 C     perfect bitwise match across ALL bd-seeded state that modern init
 C     reproduces; the only blocks outside this count are the documented
 C     bootstrap-owned / zero-seeding exclusions (9160 == 0 above), so a
