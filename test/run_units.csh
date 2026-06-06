@@ -208,12 +208,21 @@ foreach suite ( $SUITES )
       #      diag .ref files encode the bitmask) and spuriously fail them.
       #      (Resolves the "init validation env not set" finding; honors
       #      Binding Rule R14 / AAP 0.7.5.) ----
+      #      NOTE (csh status capture): $status MUST be read on the line
+      #      immediately AFTER the command, INSIDE each branch.  In csh the
+      #      "endif" of an if/else block resets $status to 0, so a single
+      #      "set rc = $status" placed AFTER the endif would always capture
+      #      0 and silently swallow a non-zero driver exit (a crashed driver
+      #      that never wrote a FAIL: token) -- a false PASS that violates
+      #      Binding Rule R14 / AAP 0.7.5.  Capturing rc within each branch
+      #      preserves the real driver exit status.
       if ( "$suite" == "init" ) then
          env NASTRAN_INIT_VALIDATE=1 LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
+         set rc = $status
       else
          env LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
+         set rc = $status
       endif
-      set rc = $status
       @ nrun++
 
       if ( -e $dlog ) then
