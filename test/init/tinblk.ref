@@ -1,0 +1,102 @@
+# tinblk.ref  --  golden reference data for test/init/tinblk.f
+# ---------------------------------------------------------------------
+# Purpose: documents the legacy bd/ BLOCK DATA values that the modern
+#          routine modern/init/blkinit.f must reproduce BITWISE, and
+#          declares the expected INITVAL divergence count (0).
+#
+# Driver contract: tinblk.f reads only the EXPDIV / EXPRAN lines below;
+#          the exhaustive bitwise check of all 39 bd/ units is delegated
+#          to modern/init/initval.f. Every other data line is a human-
+#          verifiable record of representative golden values captured
+#          from the bd/ sources (the reader ignores them).
+#
+# Format:  comment lines begin with '#'; data lines are 'KEY VALUE'.
+# Run with NASTRAN_INIT_VALIDATE=1 and NASTRAN_LEGACY_INIT unset.
+# EXPECT_VERDICT PASS: TINBLK
+# ---------------------------------------------------------------------
+#
+# Binding assertions consumed by tinblk.f:
+#   EXPDIV = expected INITVAL bitwise-divergence count (0 = perfect).
+#   EXPRAN = 1 -> validator must actually execute (gate honoured).
+EXPDIV 0
+EXPRAN 1
+#
+# === /DPDCOM/   source: bd/dpdcbd.f ==================================
+# GINO file codes follow the NASTRAN convention: inputs 1xx,
+# outputs 2xx, scratch 3xx.
+DPOOL 101
+GPL 102
+SIL 103
+USET 104
+GPLD 201
+SILD 202
+USETD 203
+TFL 204
+DLT 205
+PSDL 206
+FRL 207
+NLFT 208
+TRL 209
+EED 210
+EQDYN 211
+SDT 212
+SCR1 301
+SCR2 302
+SCR3 303
+SCR4 304
+# card-id first sub-field (second sub-field documented in comment):
+EPOINT 707
+SEQEP 5707
+DLOAD 57
+FREQ1 1007
+FREQ 1307
+TIC 6607
+TSTEP 8307
+TF 6207
+EIGR 307
+EIGB 107
+EIGC 207
+#
+# === /FLBFIL/   source: bd/flbbd.f  (module FLBMG) ===================
+GEOM2 101
+ECT 102
+BGPDT 103
+MPT 105
+GEOM3 106
+CSTM 107
+EQEXIN 109
+USETF 201
+USETS 202
+AF 203
+DKGG 204
+FBELM 301
+FRELM 302
+CONECT 303
+AFMAT 304
+AFDICT 305
+KGMAT 306
+KGDICT 307
+#
+# === /REGEAN/,/INVPWX/   source: bd/readbd.f  (eigen solver) ========
+MO 301
+MD 304
+MR1 202
+LGAMA 201
+OEIGS 204
+PHIA 305
+ORDER -2
+RSTRT 0
+NCOL 0
+MAXIT 253
+NEV 9
+# NOTE: bd/readbd.f also seeds REAL constants (RMAX=100.0, RMIN=0.01,
+#       EPSI=1.0E-11, EPS=0.0001, LMAX=60.0); blkinit.f must reproduce
+#       these BITWISE, so integer-only comparison is insufficient.
+#
+# === /SYSTEM/   source: bd/semdbd.f =================================
+# NOTE: /SYSTEM/ is the only BLOCK-DATA COMMON that also appears in the
+#       nine *.COM headers (partially, via mis/SMCOMX.COM). Most of its
+#       94 words are machine/runtime-dependent and are checked by
+#       initval.f against the legacy values rather than listed here.
+# ---------------------------------------------------------------------
+# end of tinblk.ref

@@ -1,0 +1,29 @@
+# tdscnt.ref - Expected dispatch aggregate counts for PROGRAM TDSCNT
+#
+# Source of truth: FROZEN mis/xsem00.f dispatch ladder (read-only).
+# The modern validator modern/dispatch/dispval.f must reproduce the
+# catalogued MODX counts: entry count == catalog count, with zero
+# duplicate codes and zero unmapped codes.
+#
+# Key/value lines (machine-readable). The driver tdscnt.f hardcodes
+# the primary expected values and may also consult this file; values
+# here MUST agree with the driver.
+#
+EXPECT_TOTAL 217
+EXPECT_CALL 193
+EXPECT_DISTINCT 188
+EXPECT_RESERVED 21
+EXPECT_FATAL 3
+EXPECT_DUP 0
+EXPECT_UNMAPPED 0
+RANGE_LOW 1
+RANGE_HIGH 217
+#
+# Notes:
+#  - CALL=193 dispatched slots resolve to DISTINCT=188 subroutines
+#    because XCEI is shared by 6 MODX values (5,6,7,11,12,13).
+#  - RESERVED=21 are reserved no-op CONTINUE slots (no module call).
+#  - FATAL=3 are in-range slots MODX 1,2,4 (fall through to GO TO 940).
+#  - 193 + 21 + 3 = 217 = TOTAL.
+#
+# EXPECT_VERDICT PASS: TDSCNT

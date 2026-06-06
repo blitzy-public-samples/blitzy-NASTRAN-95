@@ -1,0 +1,33 @@
+# tinnas.ref  --  reference / contract data for test/init/tinnas.f
+# ---------------------------------------------------------------------
+# Purpose: documents the expected behaviour of modern/init/nastinit.f,
+#          the single initialisation entry point invoked once from the
+#          bootstrap by 'CALL NASTINIT' (inserted immediately after
+#          CALL DBMINT in bin/nastrn.f).
+#
+# Contract under test (assumed cross-agent interface):
+#   SUBROUTINE NASTINIT            ! no arguments
+#     Reads NASTRAN_LEGACY_INIT via GETENV and orchestrates the explicit
+#     init path (diagctl + blkinit [+ initval]) invoked exactly once.
+#
+# Toggle semantics (ASSUMED; flagged for maintainer confirmation):
+#   NASTRAN_LEGACY_INIT unset (default) -> modern explicit init path;
+#                                          NASTINIT calls BLKINIT so the
+#                                          COMMON state is populated.
+#   NASTRAN_LEGACY_INIT set             -> legacy load-time path (the 39
+#                                          bd/ BLOCK DATA units), proven
+#                                          equivalent by the regression
+#                                          harness, not by this driver.
+#
+# Format:  comment lines begin with '#'; data lines are 'KEY VALUE'.
+# Run with NASTRAN_INIT_VALIDATE=1 and NASTRAN_LEGACY_INIT unset.
+# EXPECT_VERDICT PASS: TINNAS
+# ---------------------------------------------------------------------
+#
+# Binding assertions consumed by tinnas.f (default / modern path):
+#   EXPDIV = 0 -> after CALL NASTINIT the init state validates with zero
+#                 divergence (NASTINIT correctly orchestrated blkinit).
+#   EXPRAN = 1 -> the post-check validator actually executed.
+EXPDIV 0
+EXPRAN 1
+# end of tinnas.ref
