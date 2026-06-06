@@ -8,6 +8,24 @@ ar x nastlib.a pla4bd.o sdr2bd.o of1pbd.o of2pbd.o of3pbd.o
 ar x nastlib.a of3sbd.o of4pbd.o of5pbd.o of6pbd.o of7pbd.o 
 ar x nastlib.a of7sbd.o of8pbd.o of9pbd.o ofp1bd.o ofp5bd.o 
 ar x nastlib.a ofsnbd.o ofssbd.o exiobd.o itembd.o 
+# compile modern/ objects with the legacy flags; -I resolves the *.COM headers
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/init/nastinit.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/init/blkinit.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/init/initval.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/state/stateacc.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/state/stateval.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/dispatch/disptbl.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/dispatch/dispval.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/diag/diagctl.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/diag/diaglog.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/regress/regval.f
+f77 -fast -dn -I. -I../mds -I../mis -c ../modern/regress/outcomp.f
+# archive the modern/ objects so unit-test driver links resolve their symbols
+ar r nastlib.a nastinit.o blkinit.o initval.o stateacc.o stateval.o disptbl.o dispval.o diagctl.o diaglog.o regval.o outcomp.o
+# name the modern SUBROUTINE/FUNCTION objects on the nastrn.exe link line.
+# regval.o is PROGRAM REGVAL (the MAIN of regress.exe) -- it is archived above
+# but intentionally NOT named here, since a second MAIN would clash with
+# nastrn.o; test/regress/run_all.csh links regval.o/outcomp.o into regress.exe.
 f77 -fast -dn -o ../bin/nastrn.exe nastrn.o  \
 	semdbd.o tabfbd.o gptabd.o  gp3bd.o ifx1bd.o \
 	ifx2bd.o ifx3bd.o ifx4bd.o ifx5bd.o ifx6bd.o \
@@ -17,4 +35,18 @@ f77 -fast -dn -o ../bin/nastrn.exe nastrn.o  \
 	of3sbd.o of4pbd.o of5pbd.o of6pbd.o of7pbd.o \
 	of7sbd.o of8pbd.o of9pbd.o ofp1bd.o ofp5bd.o \
 	ofsnbd.o ofssbd.o exiobd.o itembd.o \
+	nastinit.o blkinit.o initval.o stateacc.o stateval.o disptbl.o dispval.o diagctl.o diaglog.o outcomp.o \
 	nastlib.a
+# build the standalone unit-test drivers individually against nastlib.a
+set nonomatch
+foreach suite ( init state dispatch diag )
+	if ( -d ../test/$suite ) then
+		set drv = ( ../test/$suite/*.f )
+		if ( -e "$drv[1]" ) then
+			foreach f ( $drv )
+				set base = $f:t:r
+				f77 -fast -dn -I. -I../mds -I../mis -o ../test/$suite/$base.exe $f nastlib.a
+			end
+		endif
+	endif
+end
