@@ -42,6 +42,7 @@ C
       IF ( IDBLEN .NE. 0 ) IDBADR = LOCFX( IZ( IOCMEM+1 ) )
       LENOPC = IOCMEM
       CALL DBMINT
+      CALL NASTINIT
       LOUT   = 3
       IRDICT = 4
       SPERLK = 1        
