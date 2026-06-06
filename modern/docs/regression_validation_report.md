@@ -30,7 +30,8 @@ modernization against any behavioral drift. Specifically, it records:
 - the **five integration inputs** that drive the dispatch cross-check and the
   per-deck regression, plus the full **132-deck** sweep;
 - the **shipped-master `NUL`-padding handling** for `demoout/t01231a.out` and
-  why the full 132-deck gate now passes; and
+  why the full 132-deck gate **can pass** (the harness is generated, not run by
+  Blitzy, per AAP §0.7.5); and
 - the **success criteria** that close out the mechanism.
 
 The design pattern is **golden-master / characterization testing**: the existing

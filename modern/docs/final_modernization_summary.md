@@ -281,8 +281,9 @@ surface":
   `mis/xsem00.f` is lifted, replace the computed-`GO TO` ladder with
   `CALL DISPTBL(MODX)`, having already proven equivalence in coexistence.
 - **Modernize the next-largest computed-`GO TO` / `ASSIGN` drivers in `mis/`**
-  — other executive drivers (for example, the remaining `XSEMxx` and `XGPI`
-  family) using the same table-driven dispatch pattern.
+  — other executive computed-`GO TO` drivers (for example, the `XGPI` family:
+  `xgpi.f`, `xgpibs.f`, `xgpidd.f`, `xgpidg.f`, `xgpimw.f`) using the same
+  table-driven dispatch pattern.
 - **Extend the accessor layer to the `mds/` GINO I/O `COMMON`s**, mediating
   disk-I/O state through facades over `DSIOF.COM`, `GINOX.COM`, and
   `PAKBLK.COM`.

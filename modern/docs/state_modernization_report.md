@@ -34,8 +34,9 @@ Specifically, it records:
   the accessor layer;
 - the **zero re-declaration evidence** — the exact, inspectable `grep` checks
   that prove no literal `COMMON` and no `EQUIVALENCE` appears anywhere in the
-  state layer, plus the single, fully-documented inline-`COMMON` exception that
-  lives in the *dispatch* layer (not here);
+  state layer, plus the single, fully-documented `/SEM/` + `/SYSTEM/` window
+  (reached via `INCLUDE 'dispsem.inc'`, no inline `COMMON`) that lives in the
+  *dispatch* layer (not here);
 - the **state validator** `modern/state/stateval.f` — its `Guard Clause`,
   accessor-only state access, and its `9100`–`9199` diagnostic codes; and
 - the deliberate **scope omissions and flags**, and the **success criteria**
@@ -202,7 +203,7 @@ against `modern/state/stateacc.f`. The expected results are:
 $ grep -in '^[ ]*COMMON' modern/state/stateacc.f
 $            # (no output) -> 0 matches
 
-$ grep -in 'EQUIVALENCE'  modern/state/stateacc.f
+$ grep -inE '^[ ]*EQUIVALENCE' modern/state/stateacc.f
 $            # (no output) -> 0 matches
 
 $ grep -cE '^      INCLUDE' modern/state/stateacc.f
@@ -215,10 +216,13 @@ Notes on reading these checks accurately:
   header comments discuss the *word* "COMMON" in prose, but every comment line
   begins with `C` in column 1, so the column-anchored pattern `^[ ]*COMMON`
   (optional leading blanks immediately followed by `COMMON`) does not match them.
-- **`EQUIVALENCE` ⇒ 0.** The file contains the token `EQUIVALENCE` **nowhere at
-  all** — the header comments deliberately describe the prohibition using the
-  phrase "storage-association (aliasing)" rather than the keyword, so even an
-  unanchored search returns zero.
+- **`EQUIVALENCE` ⇒ 0.** There is no executable `EQUIVALENCE` statement in the
+  file, so the **column-anchored** pattern `^[ ]*EQUIVALENCE` matches nothing.
+  The keyword itself appears only in three explanatory comment lines (L48, L371,
+  L387), each beginning with `C` in column 1; an unanchored `grep -i EQUIVALENCE`
+  therefore reports those 3 comment lines and must **not** be used for the proof —
+  the anchored check above is what establishes that zero `EQUIVALENCE` statements
+  exist.
 - **`INCLUDE` ⇒ 40.** Use the **column-anchored** pattern `^      INCLUDE`
   (six leading blanks, i.e. the fixed-form statement field) to count the
   **executable** `INCLUDE` statements — exactly one per program unit, 40 in all
@@ -227,14 +231,15 @@ Notes on reading these checks accurately:
   count). The 40 break down as 22 × `'DSIOF.COM'` (Group A), 10 × `'SMCOMX.COM'`
   (Group B), and 8 × `'NASNAMES.COM'` (Group C).
 
-**The one flagged exception lives elsewhere in `modern/`, not here.** The
-dispatcher `modern/dispatch/disptbl.f` carries **two minimal inline `COMMON`
-window declarations** — `COMMON /SEM/ ISEM(3), LINKNM(15)` and
-`COMMON /SYSTEM/ ISYS(21), LINKNO` — used **only** by the `MODX 43` (`EMG`)
-special case, because the `LINKNM`/`LINKNO` cells it needs are not exposed by
-name in any of the nine `*.COM` headers. That exception is documented in full in
-`dispatch_modernization_report.md`. The **state layer itself has zero inline
-`COMMON`** — the counts above stand.
+**The one flagged window lives elsewhere in `modern/`, not here.** The
+dispatcher `modern/dispatch/disptbl.f` reaches the two pre-existing blocks
+`COMMON /SEM/ ISEM(3), LINKNM(15)` and `COMMON /SYSTEM/ ISYS(21), LINKNO` through
+a single `INCLUDE 'dispsem.inc'` (no inline `COMMON` in the routine body) — used
+**only** by the `MODX 43` (`EMG`) special case, because the `LINKNM`/`LINKNO`
+cells it needs are not exposed by name in any of the nine `*.COM` headers. That
+window is documented in full in `dispatch_modernization_report.md`. Both the
+state layer and the dispatcher therefore carry **zero inline `COMMON`** — the
+counts above stand.
 
 Finally, the encapsulation is **additive**: legacy routines keep their own
 `COMMON` declarations untouched. The refactor does **not** require legacy code to

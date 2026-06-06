@@ -296,12 +296,15 @@ This discrepancy is flagged for maintainer confirmation.
   obtains `KTIME` **directly from `TMTOGO`**, exactly as the legacy ladder does,
   and needs no `/SYSTEM/` access for the time check.
 
-- **The single flagged inline COMMON exception (`MODX` 43 only).** The one place
-  `disptbl.f` needs `/SYSTEM/` cells is the `MODX` 43 `LINKNO` swap, which also
-  needs `LINKNM` from `/SEM/`. Neither `LINKNO` nor `LINKNM` is exposed by name
-  in the nine `*.COM` headers, so — consistent with NASTRAN's per-routine
-  COMMON convention and the AAP's explicit allowance — `disptbl.f` declares
-  **minimal inline windows** of these two **existing** blocks:
+- **The `/SEM/` + `/SYSTEM/` window via `INCLUDE 'dispsem.inc'` (`MODX` 43 only).**
+  The one place `disptbl.f` needs `/SYSTEM/` cells is the `MODX` 43 `LINKNO` swap,
+  which also needs `LINKNM` from `/SEM/`. Neither `LINKNO` nor `LINKNM` is exposed
+  by name in the nine `*.COM` headers, so — consistent with NASTRAN's per-routine
+  COMMON convention and the AAP's include-based state-access policy — `disptbl.f`
+  reaches these two **existing** blocks through a single dedicated, AAP-approved
+  modern header pulled in by `INCLUDE 'dispsem.inc'`
+  (`modern/dispatch/disptbl.f:L93`), exactly the include-based pattern already
+  used by `modern/init/bddata.inc`. The header centralizes the two declarations:
 
   ```fortran
   COMMON /SEM/    ISEM(3), LINKNM(15)
@@ -314,10 +317,14 @@ This discrepancy is flagged for maintainer confirmation.
   `LINKNO` at `/SYSTEM/` word 22, matching `[mis/xsem00.f:L24]`. They are used
   **only** by the `MODX` 43 branch.
 
-  This is the **only** inline `COMMON` anywhere in the `modern/` tree. It
-  introduces **no new `COMMON` block** and **no `EQUIVALENCE`** — it is a window
-  onto two pre-existing blocks, an intentional NASTRAN overlay convention,
-  **explicitly flagged for maintainer confirmation**.
+  There is **no inline/literal `COMMON` anywhere in the `modern/` tree**: the
+  dispatcher body holds zero `COMMON` statements
+  (`grep -nE '^[ ]*COMMON' modern/dispatch/disptbl.f` ⇒ 0 matches), and the two
+  pre-existing blocks are pulled in solely through `dispsem.inc`. This introduces
+  **no new `COMMON` block** and **no `EQUIVALENCE`** — it is a header-mediated
+  window onto two pre-existing blocks, consistent with the include-based
+  state-access policy of Binding Rule R8, and **flagged for maintainer
+  confirmation**.
 
 ---
 
