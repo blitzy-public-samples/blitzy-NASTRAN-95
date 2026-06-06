@@ -66,9 +66,13 @@ C     CATALOG PATH RESOLUTION
 C        run_units.csh does not guarantee the cwd.  The catalog path is
 C        resolved robustly: (1) GETENV('TDSREF') if non-blank, else
 C        (2) 'test/dispatch/tdsmap.ref' (repo-root cwd), else
-C        (3) 'tdsmap.ref' (suite-dir cwd).  A developer may set TDSREF
-C        to point at the file when running from another directory.  If
-C        none of the candidates opens, that is a genuine failure.
+C        (3) 'dispatch/tdsmap.ref' (cwd = test, the documented
+C        'cd test ; ./run_units.csh' invocation), else
+C        (4) 'tdsmap.ref' (suite-dir cwd).  run_units.csh also exports
+C        TDSREF=<suite>/<base>.ref so candidate (1) resolves from any
+C        cwd.  A developer may likewise set TDSREF when running from
+C        another directory.  If none of the candidates opens, that is a
+C        genuine failure.
 C
 C     OUTPUT CONTRACT
 C        Exactly one verdict to the log unit (logical unit 3 / LOUT):
@@ -129,6 +133,16 @@ C     record the unit in /LOGOUT/ LOUT exactly as the bootstrap does.
       IF (LOG .EQ. ' ') LOG = 'tdsmap.log'
       OPEN (3, FILE=LOG, STATUS='UNKNOWN')
       LOUT = 3
+C     STATUS='UNKNOWN' does not truncate an existing file and the runner
+C     does not pre-remove a per-run log, so a stale prior log (including
+C     a stale FAIL:) could remain.  Truncate unit 3 to zero length the
+C     way test/diag/tdggrd.f does: REWIND then ENDFILE truncates; the
+C     second REWIND repositions at the now-empty start.  All driver
+C     writes below are sequential from the start, so the log then holds
+C     exactly this run's records, ending at the verdict.
+      REWIND (3)
+      ENDFILE (3)
+      REWIND (3)
 C
 C     ---- resolve and open the golden catalog ----------------------
 C     Candidate 1: TDSREF (if set non-blank).  On a blank value or an
@@ -138,11 +152,18 @@ C     open error, fall through to candidate 2, then candidate 3.
       IF (RPATH .EQ. ' ') GO TO 200
       OPEN (8, FILE=RPATH, STATUS='OLD', ERR=200)
       GO TO 250
-C     Candidate 2: repo-root-relative path.
+C     Candidate 2: repo-root-relative path (cwd = repository root).
   200 RPATH = 'test/dispatch/tdsmap.ref'
+      OPEN (8, FILE=RPATH, STATUS='OLD', ERR=205)
+      GO TO 250
+C     Candidate 3: test-dir-relative path (cwd = test, the documented
+C     'cd test ; ./run_units.csh' invocation).  From test/ the repo-root
+C     path becomes test/test/dispatch/tdsmap.ref and the bare name
+C     test/tdsmap.ref -- so this candidate is required.
+  205 RPATH = 'dispatch/tdsmap.ref'
       OPEN (8, FILE=RPATH, STATUS='OLD', ERR=210)
       GO TO 250
-C     Candidate 3: suite-dir-relative path.
+C     Candidate 4: suite-dir-relative path (cwd = test/dispatch).
   210 RPATH = 'tdsmap.ref'
       OPEN (8, FILE=RPATH, STATUS='OLD', ERR=220)
       GO TO 250

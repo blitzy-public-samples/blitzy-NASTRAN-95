@@ -177,11 +177,27 @@ foreach suite ( $SUITES )
       endif
       @ nbuilt++
 
+      # ---- Fresh logs: remove any per-driver log/out from a PRIOR run
+      #      BEFORE executing.  A driver opens unit 3 with
+      #      STATUS='UNKNOWN', which does NOT truncate an existing file,
+      #      so a stale record (including a stale FAIL: line) could
+      #      otherwise survive into this run and be copied into $RUNLOG.
+      #      Removing them here guarantees a clean capture regardless of
+      #      whether an individual driver self-truncates ("rm" was
+      #      unaliased above so this is non-interactive; -f ignores a
+      #      missing file). ----
+      rm -f $dlog $dout
       # ---- Run: execute the driver.  As in bin/nastran, map the log
       #      unit (unit 3) to a file via LOGNM, and ALSO capture
       #      stdout+stderr, so PASS:/FAIL: is collected wherever the
-      #      driver writes it.  Capture $status immediately. ----
-      env LOGNM=$dlog $exe >& $dout
+      #      driver writes it.  ALSO export TDSREF=<suitedir>/<base>.ref:
+      #      a driver that resolves its reference data by environment
+      #      (e.g. dispatch/tdsmap) then finds the correct .ref no matter
+      #      which directory the runner was launched from (./test or the
+      #      repository root).  $suitedir is derived from NASTROOT, so the
+      #      path is cwd-independent.  Harmless for drivers that ignore
+      #      TDSREF.  Capture $status immediately. ----
+      env LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
       set rc = $status
       @ nrun++
 

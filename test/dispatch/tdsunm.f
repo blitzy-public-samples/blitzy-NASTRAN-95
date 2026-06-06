@@ -118,6 +118,16 @@ C     record the unit in /LOGOUT/ LOUT exactly as the bootstrap does.
       IF (LOG .EQ. ' ') LOG = 'tdsunm.log'
       OPEN (3, FILE=LOG, STATUS='UNKNOWN')
       LOUT = 3
+C     STATUS='UNKNOWN' does not truncate an existing file and the runner
+C     does not pre-remove a per-run log, so a stale prior log (including
+C     a stale FAIL:) could remain.  Truncate unit 3 to zero length the
+C     way test/diag/tdggrd.f does: REWIND then ENDFILE truncates; the
+C     second REWIND repositions at the now-empty start.  All driver
+C     writes below are sequential from the start, so the log then holds
+C     exactly this run's records, ending at the verdict.
+      REWIND (3)
+      ENDFILE (3)
+      REWIND (3)
 C
 C     =================================================================
 C     SUB-CHECK 1 -- each fatal code triggers a FATAL MESAGE in-band.

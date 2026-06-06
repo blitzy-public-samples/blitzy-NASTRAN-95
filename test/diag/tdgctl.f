@@ -101,6 +101,18 @@ C     receiver idiom matches bin/nastrn.f (LOG=' ' then CALL GETENV).
       CALL GETENV ('LOGNM', LOG)
       IF (LOG .EQ. ' ') LOG = 'tdgctl.log'
       OPEN (LOUT, FILE=LOG, STATUS='UNKNOWN')
+C     STATUS='UNKNOWN' does not truncate an existing file and the runner
+C     does not pre-remove a per-run log.  The BINDING default-silent
+C     sub-check below REWINDs and READs unit 3 expecting END= (no
+C     record); a stale record from a prior run would be read back and
+C     cause a FALSE failure even when DIAGLOG correctly writes nothing.
+C     Truncate unit 3 to zero length here (the test/diag/tdggrd.f idiom:
+C     REWIND then ENDFILE truncates; second REWIND repositions at the
+C     now-empty start) so the disabled-path probe sees a genuinely empty
+C     unit 3.
+      REWIND (LOUT)
+      ENDFILE (LOUT)
+      REWIND (LOUT)
 C
 C     =================================================================
 C     SUB-CHECK 1 -- DIAGCTL runs cleanly and returns the DEFAULT state.
@@ -174,6 +186,11 @@ C     (it appears nowhere else in this file).
       ELSE
          WRITE (LOUT, '(A)') 'FAIL: TDGCTL'
       END IF
+C     The enabled-path positive control above left a (longer) diagnostic
+C     record on unit 3; the verdict was rewritten at the start, so
+C     ENDFILE here truncates any trailing bytes -- the log then holds
+C     exactly the single verdict line the harness greps.
+      ENDFILE (LOUT)
       CLOSE (LOUT)
       STOP
       END

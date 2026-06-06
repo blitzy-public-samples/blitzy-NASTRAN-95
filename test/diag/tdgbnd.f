@@ -80,6 +80,15 @@ C     as the single diagnostic / verdict sink.
       CALL GETENV ('LOGNM', LOG)
       IF (LOG .EQ. ' ') LOG = 'tdgbnd.log'
       OPEN (LOUT, FILE=LOG, STATUS='UNKNOWN')
+C     STATUS='UNKNOWN' does not truncate an existing file and the runner
+C     does not pre-remove a per-run log, so a stale log could leave
+C     trailing records (including a stale FAIL:).  Truncate unit 3 to
+C     zero length the way the PASS-reference driver test/diag/tdggrd.f
+C     does -- REWIND then ENDFILE truncates; the second REWIND
+C     repositions at the now-empty start of file.
+      REWIND (LOUT)
+      ENDFILE (LOUT)
+      REWIND (LOUT)
 C
 C     =================================================================
 C     SUB-CHECK 1 -- band definition is sane (static contract guard).
@@ -144,6 +153,11 @@ C     Rewind so the log holds exactly the verdict the harness greps.
       ELSE
          WRITE (LOUT, '(A)') 'FAIL: TDGBND'
       END IF
+C     The capture loop above left its last (longer) DIAGLOG record on
+C     unit 3; the verdict was rewritten at the start, so ENDFILE here
+C     truncates any trailing bytes of that record -- the log then holds
+C     exactly the single verdict line the harness greps.
+      ENDFILE (LOUT)
       CLOSE (LOUT)
       STOP
       END

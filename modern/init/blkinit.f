@@ -68,9 +68,12 @@ C     {1,2,4,9,22,39,40,41,42,43,44,55,91,92} (by the EQUIVALENCEd
 C     names SYSBUF,OUTTAP,INTP,NLPP,LINKNO,NBPC,NBPW,NCPW,IDATE(1..3),
 C     IPREC,LPCH,LDICT); IDRUM (cell 34) is ONLY equivalenced, never
 C     assigned.  DBMINT declares /SYSTEM/ as ISYSBF,IWR (cells 1,2) and
-C     writes neither.  The nine cells BLKINIT writes -- 8,14,19,23,24,
-C     29,30,34,35 -- have EMPTY intersection with that set, so every
-C     write is provably BTSTRP/DBMINT-untouched and hence idempotent.
+C     writes neither.  The 42 cells BLKINIT writes (9 non-zero goldens
+C     {8,14,19,23,24,29,30,34,35} + 33 zero cells: DUM1 cells
+C     {3,5,6,7,10,11,12,13,15,16,17,18,20,21,25,26,27,28,32,33,36,37,
+C     38} and DUM2 cells {45-54}) have EMPTY intersection with the
+C     BTSTRP set above and exclude machine HICORE(31), so every write
+C     is provably BTSTRP/DBMINT-untouched and idempotent (bit-safe).
 C
 C     -----------------------------------------------------------------
 C     INCLUDE-ONLY STATE ACCESS -- ZERO new COMMON, ZERO EQUIVALENCE
@@ -103,6 +106,14 @@ C        cell 29  MAXFIL = 35     DUM1(27)  max number of files
 C        cell 30  MAXOPN = 16     DUM1(28)  max simultaneously-open
 C        cell 34  NBRCBU = 15     DUM1(32)  CDC FET + dummy index len
 C        cell 35  LPRUS  = 64     DUM1(33)  CDC words per PRU
+C
+C     ...PLUS 33 SAFE ZERO cells (bd/semdbd.f zero-fill), written by the
+C     two DATA-driven loops at the end of the body over the ZD1 (23 of
+C     DUM1) and ZD2 (10 of DUM2) index lists declared above.  TOTAL
+C     reproduced /SYSTEM/ cells = 42 (9 non-zero + 33 zero) -- the
+C     COMPLETE header-reachable, BTSTRP/DBMINT-untouched, non-machine
+C     safe subset that SMCOMX.COM exposes within cells 1-55.  See the
+C     EXCLUDED list below for the cells deliberately not written.
 C
 C     CELL-POSITION / NBPW-OFFSET RESOLUTION (maintainer note).  The
 C     sibling modern/state/stateacc.f and this routine AGREE that NBPW
@@ -216,28 +227,51 @@ C     Any future progress logging must go through modern/diag/diaglog.f
 C     (logical unit 3 only, MESAGE codes 9001-9999, IDIAG-guarded).
 C
 C  LOCK-STEP CONTRACT WITH modern/init/initval.f
-C     The set of cells written here (the nine /SYSTEM/ DUM1 cells
-C     listed above, with their golden values) MUST equal exactly the
-C     set initval.f validates.  Keep the two synchronized; the decision
-C     and the cell set are recorded in
+C     The set of cells written here (the 42 /SYSTEM/ cells: 9 non-zero
+C     DUM1 goldens + 23 zero DUM1 + 10 zero DUM2, via the IDENTICAL
+C     ZD1/ZD2 index lists) MUST equal exactly the set initval.f
+C     validates, with identical golden values.  Keep the two
+C     synchronized; the decision and the cell set are recorded in
 C     modern/docs/init_modernization_report.md.
 C=====================================================================
       SUBROUTINE BLKINIT
 C
-C     DUM1-TYPE note: DUM1 is declared ONLY in the SMCOMX.COM COMMON
-C     statement, which gives it no explicit type.  By the FORTRAN
-C     default-typing rule a name beginning with 'D' is REAL; every
-C     /SYSTEM/ config cell reproduced here is INTEGER, so DUM1 is typed
-C     INTEGER to guarantee integer (not floating) store semantics.  The
-C     array EXTENT (37) still comes from the INCLUDEd COMMON statement;
-C     this declaration only assigns a type and is NEITHER a new COMMON
-C     NOR an EQUIVALENCE.  It precedes the INCLUDE so the type is in
-C     force when the COMMON statement dimensions DUM1(37).
+C     DUM-TYPE note: DUM1 and DUM2 are declared ONLY in the SMCOMX.COM
+C     COMMON statement, which gives them no explicit type.  By the
+C     FORTRAN default-typing rule a name beginning with 'D' is REAL;
+C     every /SYSTEM/ config cell reproduced here is INTEGER, so both are
+C     typed INTEGER for integer (not floating) store semantics.  The
+C     array EXTENTS (37 and 14) still come from the INCLUDEd COMMON
+C     statement; these declarations only assign a type and are NEITHER a
+C     new COMMON NOR an EQUIVALENCE.  They precede the INCLUDE so the
+C     type is in force when the COMMON statement dimensions DUM1(37) and
+C     DUM2(14).
       INTEGER           DUM1
+      INTEGER           DUM2
+C
+C     Local index lists naming the /SYSTEM/ DUM1 and DUM2 cells whose
+C     bd/semdbd.f golden is ZERO and that are SAFE to (re)write (BTSTRP/
+C     DBMINT-untouched, non-machine, within SMCOMX.COM's 55-word
+C     /SYSTEM/).  Held in DATA arrays so THIS writer and the lock-step
+C     validator modern/init/initval.f share one IDENTICAL index list.
+C     ZD1(23) -> zero DUM1 cells; ZD2(10) -> zero DUM2 cells; IZ loops.
+      INTEGER           ZD1(23), ZD2(10), IZ
 C
 C     The single permitted state-access path: SMCOMX.COM is the only
 C     one of the nine *.COM headers that declares /SYSTEM/.
       INCLUDE 'SMCOMX.COM'
+C
+C     Zero-valued safe cells by ARRAY INDEX (ascending).  DUM1(j) is
+C     /SYSTEM/ cell j+2; DUM2(j) is cell j+40.  ZD1 thus covers cells
+C     3,5,6,7,10,11,12,13,15,16,17,18,20,21,25,26,27,28,32,33,36,37,38
+C     (NOGO,MPC,SPC,LOGFL,MTEMP,NPAGES,NLINES,TLINES,DATE(3),TIMEZ,
+C     PLOTF,APPRCH,RFFLAG,CPPGCT,MN,DUMMYI,TIMEW,OFPFLG,NPRUS,KSYS37,
+C     QQ); ZD2 covers cells 45-54 (TAPFLG,ADUMEL(9)).  All are
+C     bd/semdbd.f zero-fill.  The BTSTRP cells {4,9,22,39 in DUM1;
+C     41,42,43,44 in DUM2} and machine HICORE(31=DUM1(29)) are NOT here.
+      DATA ZD1 / 1, 3, 4, 5, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19, 23,
+     &           24, 25, 26, 30, 31, 34, 35, 36 /
+      DATA ZD2 / 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /
 C
 C     -----------------------------------------------------------------
 C     /SYSTEM/ -- explicit, ordered reproduction of the safe, non-
@@ -263,6 +297,21 @@ C     cell 34  NBRCBU = 15     (CDC-only FET + dummy index length)
       DUM1(32) = 15
 C     cell 35  LPRUS  = 64     (CDC-only words per physical record unit)
       DUM1(33) = 64
+C
+C     -----------------------------------------------------------------
+C     Zero-valued safe config cells (33: 23 in DUM1, 10 in DUM2).  Each
+C     is bd/semdbd.f zero-fill, reproduced so the test-harness exe (no
+C     bd/ objects linked; COMMON starts zeroed) presents the FULL safe
+C     set to INITVAL, and so the real-solver path idempotently re-
+C     affirms 0 over cells the linked bd/ units already hold at 0 (never
+C     a BTSTRP/machine cell -- see the non-clobber proof in the header).
+C     -----------------------------------------------------------------
+      DO 100 IZ = 1, 23
+         DUM1(ZD1(IZ)) = 0
+  100 CONTINUE
+      DO 110 IZ = 1, 10
+         DUM2(ZD2(IZ)) = 0
+  110 CONTINUE
 C
       RETURN
       END

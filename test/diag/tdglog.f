@@ -97,6 +97,17 @@ C     receiver idiom matches bin/nastrn.f (VALUE=' ' then CALL GETENV).
       CALL GETENV ('LOGNM', LOG)
       IF (LOG .EQ. ' ') LOG = 'tdglog.log'
       OPEN (LOUT, FILE=LOG, STATUS='UNKNOWN')
+C     STATUS='UNKNOWN' does not truncate an existing file and the runner
+C     does not pre-remove a per-run log, so a stale prior log could
+C     remain and pollute the aggregated runner log.  Truncate unit 3 to
+C     zero length before any capture the way test/diag/tdggrd.f does
+C     (REWIND then ENDFILE truncates; the second REWIND repositions at
+C     the now-empty start).  This driver's append design then yields the
+C     diagnostic record followed by the verdict, with no stale trailing
+C     bytes after the final write.
+      REWIND (LOUT)
+      ENDFILE (LOUT)
+      REWIND (LOUT)
 C
 C     Scratch unit for the behavioral "never a new unit" check (sub-
 C     check 2).  DIAGLOG must never write here; we confirm it stays

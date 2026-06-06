@@ -7,7 +7,10 @@
 #   by Blitzy.
 #
 # Contract: tstval.f establishes a CONSISTENT state via the SET
-#   accessors, then  CALL STVAL(IST)  and asserts  IST .EQ. 0
+#   accessors, then sets a NONZERO IDIAG (the validator's first
+#   executable statement is the guard IF (IDIAG .EQ. 0) RETURN, so
+#   IDIAG=0 would skip every check and leave the poisoned IST
+#   unchanged), then  CALL STATEVAL(IDIAG,IST)  and asserts  IST .EQ. 0
 #   (consistent => status 0, zero divergences). Happy path only.
 #
 # Binding expectation:

@@ -120,13 +120,16 @@ C     two files MUST agree; see modern/docs/init_modernization_report.md
 C     and the LOCK-STEP CONTRACT note in blkinit.f).  SMCOMX.COM lays
 C     out /SYSTEM/ as ISYSBF(1), NOUT(2), DUM1(37)=cells 3-39, NBPW(40),
 C     DUM2(14)=cells 41-54, ISPREC(55), so /SYSTEM/ physical cell k with
-C     3 <= k <= 39 is DUM1(k-2).  All nine cells are non-machine config
-C     defaults proven BTSTRP/DBMINT-untouched: their cell set
-C     {8,14,19,23,24,29,30,34,35} is disjoint from the BTSTRP/DBMINT
-C     write set, so each compares equal in both the real solver (where
-C     the bd/ units seed them at load) and the unit-test executable
-C     (where blkinit.f populates them and the bd/ BLOCK DATA is not
-C     linked).  Golden values are from bd/semdbd.f's DATA block,
+C     3 <= k <= 39 is DUM1(k-2).  The validated set = 42 cells:
+C     the NINE non-zero config goldens listed below {cells 8,14,19,23,
+C     24,29,30,34,35} PLUS 33 zero cells (DUM1 via ZD1, DUM2 via ZD2,
+C     IDENTICAL to blkinit.f).  Every validated cell is non-machine and
+C     proven BTSTRP/DBMINT-untouched (its cell set is disjoint from the
+C     BTSTRP write set {1,2,4,9,22,39,40,41,42,43,44,55} and excludes
+C     machine HICORE(31)), so each compares equal in both the real
+C     solver (bd/ units seed them at load) and the unit-test executable
+C     (blkinit.f populates them; the bd/ BLOCK DATA is not linked).
+C     Golden values are from bd/semdbd.f's DATA block,
 C     array-aware (DATE(3),SYSDAT(3),ADUMEL(9),MODCOM(9),HDY(3),
 C     SWITCH(3),K8890(3),LEFT(56),LEFT2(28) make /SYSTEM/ 180 words ==
 C     LSYSTM, placing NBPW at cell 40 in agreement with SMCOMX.COM):
@@ -152,9 +155,10 @@ C     DIAGNOSTIC CODES (init sub-band 9100-9199; this band is shared
 C     with stateval.f, which uses the 9102-9106 detail cluster --
 C     deliberately avoided here to prevent numeric collision):
 C        9100  validation summary               (NVAL = final NDIV)
-C        9101  a /SYSTEM/ config cell diverges  (NVAL = live value)
-C        9150  /GINOX/ deferred (layout collision)
-C        9160  N header-unreachable bd/ blocks deferred (NVAL = N)
+C        9101  a validated /SYSTEM/ cell diverges (NVAL = live value)
+C        9150  /GINOX/ NOT validated (layout collision)
+C        9160  N header-unreachable bd/ blocks NOT validated (NVAL = N)
+C        9170  count of /SYSTEM/ cells validated   (NVAL = NVALID = 42)
 C     Non-fatal reporting uses DIAGLOG (logical unit 3 only).  No CALL
 C     MESAGE is made: INITVAL has no unrecoverable condition (a
 C     divergence is counted and reported, never fatal).  The fatal
@@ -171,34 +175,54 @@ C
 C     OUTPUT argument and the self-acquired diagnostics bitmask.
       INTEGER           NDIV, IDIAG
 C
-C     DUM1-TYPE note: DUM1 is named only by the SMCOMX.COM COMMON
-C     statement, which gives it no explicit type; by the FORTRAN default
-C     rule a name beginning with 'D' would be REAL.  Every validated
-C     /SYSTEM/ cell is INTEGER, so DUM1 is typed INTEGER here to force
-C     integer (not floating) load semantics.  This declaration assigns
-C     only a TYPE -- the array EXTENT (37) still comes from the INCLUDEd
-C     COMMON statement -- and is NEITHER a new COMMON NOR an
-C     EQUIVALENCE.  It MUST precede the INCLUDE so the type is in force
-C     when the COMMON statement dimensions DUM1(37).
+C     DUM-TYPE note: DUM1 and DUM2 are named only by the SMCOMX.COM
+C     COMMON statement, which gives them no explicit type.  By the
+C     FORTRAN default rule a name beginning with 'D' would be REAL;
+C     every validated /SYSTEM/ cell is INTEGER, so both are typed
+C     INTEGER here to force integer (not floating) load semantics.
+C     These declarations assign only a TYPE -- the array EXTENTS (37
+C     and 14) still come from the INCLUDEd COMMON statement -- and are
+C     NEITHER a new COMMON NOR an EQUIVALENCE.  They MUST precede the
+C     INCLUDE so the type is in force when the COMMON statement
+C     dimensions DUM1(37) and DUM2(14).
       INTEGER           DUM1
+      INTEGER           DUM2
 C
 C     Legacy bd/semdbd.f golden values as LOCAL constants (not COMMON),
 C     in ascending /SYSTEM/ cell order; kept in lock-step with the
-C     values written by modern/init/blkinit.f.
+C     values written by modern/init/blkinit.f.  These are the nine
+C     NON-ZERO config goldens.
       INTEGER           GLOAD, GMXLIN, GECHOF, GLSYST, GICFIA
       INTEGER           GMAXFL, GMAXOP, GNBRCB, GLPRUS
       PARAMETER ( GLOAD = 1, GMXLIN = 20000, GECHOF = 2 )
       PARAMETER ( GLSYST = 180, GICFIA = 11, GMAXFL = 35 )
       PARAMETER ( GMAXOP = 16, GNBRCB = 15, GLPRUS = 64 )
 C
-C     Count of header-unreachable bd/-seeded COMMON blocks (deferred and
-C     reported once via code 9160; see MAINTAINER FLAG 4).
+C     Index lists of the SAFE /SYSTEM/ cells whose bd/semdbd.f golden is
+C     ZERO -- IDENTICAL to the ZD1/ZD2 lists in modern/init/blkinit.f
+C     (the lock-step contract).  ZD1(23) -> zero DUM1 cells; ZD2(10) ->
+C     zero DUM2 cells.  With the nine non-zero goldens this gives the
+C     validated set of NVALID = 42 cells (9 non-zero + 33 zero).
+      INTEGER           ZD1(23), ZD2(10), IZ
+      INTEGER           NVALID
+      PARAMETER ( NVALID = 42 )
+C
+C     Count of header-unreachable bd/-seeded blocks, NOT validated
+C     and reported once via code 9160 (see MAINTAINER FLAG 4).  90 bd/-
+C     seeded blocks minus /SYSTEM/ (validated) minus /GINOX/ (collision,
+C     code 9150) = 88 header-unreachable.
       INTEGER           NUNRCH
-      PARAMETER ( NUNRCH = 86 )
+      PARAMETER ( NUNRCH = 88 )
 C
 C     The single permitted state-access path: SMCOMX.COM is the only one
 C     of the nine *.COM headers that declares /SYSTEM/.
       INCLUDE 'SMCOMX.COM'
+C
+C     Zero-valued safe cells by ARRAY INDEX (ascending), IDENTICAL to
+C     blkinit.f.  DUM1(j) is /SYSTEM/ cell j+2; DUM2(j) is cell j+40.
+      DATA ZD1 / 1, 3, 4, 5, 8, 9, 10, 11, 13, 14, 15, 16, 18, 19, 23,
+     &           24, 25, 26, 30, 31, 34, 35, 36 /
+      DATA ZD2 / 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /
 C
 C     -----------------------------------------------------------------
 C     GUARD (MANDATORY; FIRST EXECUTABLE STATEMENTS).  The sole pre-
@@ -261,15 +285,44 @@ C     -----------------------------------------------------------------
       END IF
 C
 C     -----------------------------------------------------------------
-C     DEFERRED-SET NOTES -- informational only; NOT counted in NDIV.
-C     (See MAINTAINER FLAG 3 and MAINTAINER FLAG 4.)
+C     COMPARE (continued) -- the 33 SAFE ZERO cells, validated by two
+C     DATA-driven loops over IDENTICAL ZD1/ZD2 index lists (lock-step
+C     with blkinit.f).  Each diverging zero cell adds 1 to NDIV; the
+C     9101 NVAL is the (unexpected non-zero) live value and the tag
+C     names the array slot.
 C     -----------------------------------------------------------------
-      CALL DIAGLOG (IDIAG, 9150, 0, 'GINOX DEFERRED COLLISION')
-      CALL DIAGLOG (IDIAG, 9160, NUNRCH, 'BLOCKS HDR-UNREACHABLE')
+      DO 100 IZ = 1, 23
+         IF (DUM1(ZD1(IZ)) .NE. 0) THEN
+            NDIV = NDIV + 1
+            CALL DIAGLOG (IDIAG, 9101, DUM1(ZD1(IZ)), 'DUM1 ZERO CELL')
+         END IF
+  100 CONTINUE
+      DO 110 IZ = 1, 10
+         IF (DUM2(ZD2(IZ)) .NE. 0) THEN
+            NDIV = NDIV + 1
+            CALL DIAGLOG (IDIAG, 9101, DUM2(ZD2(IZ)), 'DUM2 ZERO CELL')
+         END IF
+  110 CONTINUE
 C
 C     -----------------------------------------------------------------
-C     REPORT -- one summary record carrying the final divergence count.
-C     NDIV = 0 means a perfect bitwise match over the validated set.
+C     SCOPE / DEFERRED-SET NOTES -- informational only; NOT counted in
+C     NDIV.  Emitted so the validated scope is EXPLICIT and the deferred
+C     blocks are never silently treated as success (see MAINTAINER FLAGS
+C     3 and 4 and the AAP zero-new-COMMON constraint they cite).
+C        9170 -- COUNT of /SYSTEM/ cells actually validated (NVALID=42)
+C        9150 -- /GINOX/ NOT validated (layout collision)
+C        9160 -- COUNT of bd/ COMMON blocks NOT validated (header-
+C                unreachable under the zero-new-COMMON rule)
+C     -----------------------------------------------------------------
+      CALL DIAGLOG (IDIAG, 9170, NVALID, 'SYSTEM CELLS VALIDATED')
+      CALL DIAGLOG (IDIAG, 9150, 0, 'GINOX NOT VALD-COLLISION')
+      CALL DIAGLOG (IDIAG, 9160, NUNRCH, 'BLOCKS NOT VALD-HDR UNRCH')
+C
+C     -----------------------------------------------------------------
+C     REPORT -- one summary record carrying the final divergence count
+C     OVER THE VALIDATED SET (NVALID cells).  NDIV = 0 means a perfect
+C     bitwise match over that validated set; it does NOT assert anything
+C     about the deferred blocks reported above (scope is explicit).
 C     -----------------------------------------------------------------
       CALL DIAGLOG (IDIAG, 9100, NDIV, 'INIT VALIDATION COMPLETE')
 C
