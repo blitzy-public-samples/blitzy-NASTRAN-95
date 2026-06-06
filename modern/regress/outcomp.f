@@ -357,23 +357,38 @@ C                                     whose LCONT is 0 (blank lines
 C                                     are skipped).
 C
 C     VOLATILE SIGNATURES SKIPPED
-C         'SOLARIS NASTRAN' -> per-page header (also sets HEADSN).
-C         'DATE:'           -> final timing tail.
-C         'END TIME'        -> final timing tail.
-C         'WALL CLOCK'      -> final timing tail.
+C         'SOLARIS NASTRAN'     -> per-page header (also sets HEADSN).
+C         'DATE:'               -> final timing tail.
+C         'END TIME'            -> final timing tail.
+C         'WALL CLOCK'          -> final timing tail.
+C         'MACHINE' AND 'BY '   -> tape-provenance line naming the
+C                                  MACHINE that wrote a tape (INPUTT5/
+C                                  OUTPUT5).  The machine name is
+C                                  environment-specific (NUL padding in
+C                                  the shipped demoout/t01231a.out), so
+C                                  the whole line is volatile; the
+C                                  signature is machine-name-INDEPENDENT
+C                                  so it skips symmetrically in both
+C                                  streams and does NOT match the
+C                                  legitimate 'ON 32-BIT WORD MACHINE'
+C                                  warning (which has no 'BY ').
 C     Text line-ending residue -- a trailing CR (13) or LF (10) left in
 C     the record by a CRLF-terminated file -- is replaced by a blank so
-C     such files compare cleanly.  ANY OTHER control byte (ICHAR .LT.
-C     32), in particular an embedded NUL (0), marks the record as
-C     embedded binary / non-text: NXTCMP sets IERR = 1 and IEOF = 1 and
-C     returns, so OUTCOMP reports IRET = 1 (e.g. demoout/t01231a.out).
+C     such files compare cleanly.  An embedded NUL (0) is likewise
+C     normalized to a blank (recording HADNUL): the only NULs in the 132
+C     shipped golden masters are the four-byte machine-name padding on
+C     the volatile tape-provenance lines above, which are skipped whole,
+C     so the all-132 regression gate can pass.  ANY OTHER control byte
+C     (ICHAR .LT. 32), AND a NUL that survives every volatile skip, marks
+C     the record as embedded binary / non-text: NXTCMP sets IERR = 1 and
+C     IEOF = 1 and returns, so OUTCOMP reports IRET = 1.
 C
 C     SELF-CONTAINED -- NO COMMON, NO EQUIVALENCE, NO INCLUDE.
 C=====================================================================
 C     STRICT FORTRAN 77 -- all names explicitly typed; no IMPLICIT NONE
 C     (an F90 feature) is used (AAP 0.7.2: no non-F77 dialect features).
       INTEGER       LU, IEOF, IERR, LCONT
-      LOGICAL       HEADSN
+      LOGICAL       HEADSN, HADNUL
       CHARACTER*(*) CONT
       CHARACTER*256 BUF
       INTEGER       IOS, I, IC
@@ -395,17 +410,28 @@ C        --- hard read error (e.g. an embedded-binary output file) ---
          RETURN
       END IF
 C
-C     --- scan for control bytes.  Tolerate ONLY the expected text
-C     --- line-ending residue CR (13) / LF (10), normalizing it to a
-C     --- blank; treat EVERY other control byte (ICHAR .LT. 32) -- in
-C     --- particular an embedded NUL (0) -- as embedded binary: flag a
-C     --- hard error so OUTCOMP returns IRET = 1 instead of silently
-C     --- comparing binary content as blanks (e.g. demoout/t01231a.out).
+C     --- scan for control bytes.  Normalize the expected text
+C     --- line-ending residue CR (13) / LF (10) to a blank, and ALSO
+C     --- normalize an embedded NUL (0) to a blank while recording
+C     --- HADNUL.  The shipped golden master demoout/t01231a.out carries
+C     --- 20 NUL bytes -- four-byte machine-name padding on five VOLATILE
+C     --- tape-provenance lines ("... WRITTEN BY <nul-name> MACHINE ...")
+C     --- written by INPUTT5/OUTPUT5; those whole lines are skipped as
+C     --- volatile just below (the MACHINE+'BY ' signature), so the NUL
+C     --- padding never reaches a comparison.  EVERY OTHER control byte
+C     --- (ICHAR .LT. 32) remains embedded binary: flag a hard error so
+C     --- OUTCOMP returns IRET = 1 rather than silently comparing binary
+C     --- as blanks.  A NUL that survives every volatile skip is also
+C     --- treated as binary by the HADNUL guard below.
+      HADNUL = .FALSE.
       DO 20 I = 1, 256
          IC = ICHAR(BUF(I:I))
          IF (IC .LT. 32) THEN
             IF (IC .EQ. 13 .OR. IC .EQ. 10) THEN
                BUF(I:I) = CHAR(32)
+            ELSE IF (IC .EQ. 0) THEN
+               BUF(I:I) = CHAR(32)
+               HADNUL   = .TRUE.
             ELSE
                IERR = 1
                IEOF = 1
@@ -427,8 +453,33 @@ C     --- volatile final timing tail (3 lines) ---
       IF (INDEX(BUF, 'END TIME')   .GT. 0) GO TO 10
       IF (INDEX(BUF, 'WALL CLOCK') .GT. 0) GO TO 10
 C
+C     --- volatile tape-provenance lines: INPUTT5/OUTPUT5 emit the name
+C     --- of the MACHINE that wrote the tape, e.g.
+C     ---   "... WRITTEN BY <machine-name> MACHINE ..."  and
+C     ---   "(BY <machine-name> MACHINE, ... RECORDS)".
+C     --- The machine name is environment-specific (NUL padding in the
+C     --- shipped demoout/t01231a.out, a real name on a fresh run), so
+C     --- the whole line is volatile and skipped SYMMETRICALLY in both
+C     --- streams via a machine-name-INDEPENDENT signature: the line
+C     --- contains BOTH 'MACHINE' and 'BY '.  This matches exactly the
+C     --- five tape-provenance lines across all 132 golden masters and
+C     --- does NOT match the legitimate, non-volatile
+C     --- '... ON 32-BIT WORD MACHINE' warning (which has no 'BY ').
+      IF (INDEX(BUF, 'MACHINE') .GT. 0 .AND.
+     &    INDEX(BUF, 'BY ')     .GT. 0) GO TO 10
+C
 C     --- skip the cover/banner preceding the first page header ---
       IF (.NOT. HEADSN) GO TO 10
+C
+C     --- residual-binary guard: a NUL that was normalized above but did
+C     --- NOT belong to a recognized volatile line is unexpected binary
+C     --- content; treat it as a hard error (IRET = 1) exactly as before,
+C     --- so genuine embedded-binary output is never silently compared.
+      IF (HADNUL) THEN
+         IERR = 1
+         IEOF = 1
+         RETURN
+      END IF
 C
 C     --- strip the column-1 carriage-control character ('1','0',
 C     --- ' ','+') by taking columns 2..256 as the comparable text ---

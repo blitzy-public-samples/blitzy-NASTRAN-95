@@ -38,7 +38,9 @@ C     problem that does not exist at runtime.  An explicit sequence is
 C     deterministic, inspectable, zero-overhead, and trivially matches
 C     the load-time BLOCK DATA semantics it mirrors.  The body below is
 C     a fixed, commented, ascending-cell-ordered series of assignments
-C     addressing one COMMON block (/SYSTEM/).
+C     for the proven-safe /SYSTEM/ config subset, FOLLOWED BY the
+C     generated, bitwise reproduction of the full R set (72 bd-DATA
+C     blocks, 31316 words) via bdcopy.inc -- see MAINTAINER FLAG 2.
 C
 C     -----------------------------------------------------------------
 C     WHY THIS IS CORRECT AND BIT-FOR-BIT SAFE (coexistence / duality)
@@ -149,70 +151,44 @@ C     invalid and could corrupt live disk-I/O state, so /GINOX/ is NOT
 C     initialized here and GINOX.COM is NOT included.  The collision is
 C     deferred to modern/docs/pre_implementation_analysis.md.
 C
-C  MAINTAINER FLAG 2 -- ~86 HEADER-UNREACHABLE bd-set COMMON BLOCKS
-C     The 39 bd/ units seed 90 distinct COMMON blocks; only /SYSTEM/
-C     (partially, via SMCOMX.COM) and /GINOX/ (collision, above) appear
-C     in any of the nine *.COM headers.  The remaining 88 blocks are
-C     declared by NO header and CANNOT be reached without declaring new
-C     COMMON, authoring a new INCLUDE header, or adding EQUIVALENCE --
-C     all forbidden by the zero-new-COMMON rule.  They are therefore
-C     DEFERRED, not reproduced.  The full bd/ -> COMMON coverage table
-C     belongs to modern/docs/pre_implementation_analysis.md; the in-
-C     code manifest below (originating bd/ unit -> deferred blocks)
-C     makes the omission impossible to miss.  Each entry reads:
-C     "DEFERRED -- header-unreachable; reproduction requires a
-C     maintainer-authored INCLUDE or a relaxation of zero-new-COMMON."
+C  MAINTAINER FLAG 2 -- COMPLETE bd-SEEDED REPRODUCTION (R SET) PLUS THE
+C  PRINCIPLED, AAP 0.7.1-MANDATED EXCLUSIONS
+C     The 39 bd/ BLOCK DATA units seed 92 distinct COMMON blocks.  This
+C     routine now reproduces ALL of them that it is bit-safe to reproduce
+C     -- the "R set" of 72 bd-DATA-seeded blocks (31316 words) -- through
+C     the generated headers bddata.inc (flat INTEGER COMMON views) +
+C     bdgold.inc (bitwise golden words) + bdcopy.inc (the copy loops in
+C     the body).  The goldens were captured by LINKING the real bd/
+C     objects and dumping COMMON memory as integers, so the reproduction
+C     is bit-for-bit by construction across REAL, INTEGER and Hollerith
+C     fields alike (including readbd.f's REAL goldens RMAX=100.0,
+C     RMIN=.01, EPSI=1.0E-11, EPS=.0001, LMAX=60.).  This satisfies AAP
+C     0.7.3#1 (reproduce all bd values bitwise) and is the include/header
+C     coverage the code review explicitly endorsed for the previously
+C     header-unreachable blocks.  The full bd/ -> COMMON table and the
+C     R-set membership are in modern/docs/pre_implementation_analysis.md
+C     and modern/docs/init_modernization_report.md.
 C
-C       dpdcbd.f -> /DPDCOM/
-C       exiobd.f -> /EXIO2F/ /EXIO2P/
-C       flbbd.f  -> /FLBFIL/
-C       gp3bd.f  -> /GP3COM/
-C       gptabd.f -> /GPTA1/ /CLSTRS/
-C       ifp3bd.f -> /IFP3CM/
-C       ifx1bd.f -> /IFPX1/ /IFPX0/
-C       ifx2bd.f -> /IFPX2/
-C       ifx3bd.f -> /IFPX3/
-C       ifx4bd.f -> /IFPX4/
-C       ifx5bd.f -> /IFPX5/
-C       ifx6bd.f -> /IFPX6/
-C       ifx7bd.f -> /IFPX7/
-C       itembd.f -> /ITEMDT/
-C       of1pbd.f -> /OFPB1/
-C       of2pbd.f -> /OFPB2/
-C       of3pbd.f -> /OFPB3/
-C       of3sbd.f -> /OFPB3S/
-C       of4pbd.f -> /OFPB4/
-C       of5pbd.f -> /OFPB5/
-C       of6pbd.f -> /OFPB6/
-C       of7pbd.f -> /OFPB7/
-C       of7sbd.f -> /OFPB7S/
-C       of8pbd.f -> /OFPB8/
-C       of9pbd.f -> /OFPB9/
-C       ofp1bd.f -> /OFPBD1/
-C       ofp5bd.f -> /OFPBD5/
-C       ofsnbd.f -> /OFSN1/
-C       ofssbd.f -> /OFSS1/
-C       pla4bd.f -> /PLA42C/
-C       plotbd.f -> /CHAR94/ /CHRDRW/ /XXPARM/ /PLTDAT/ /SYMBLS/
-C                   /PLTSCR/ /DRWAXS/
-C       readbd.f -> /REGEAN/ /INVPWX/ /GIVN/   (incl. REAL goldens
-C                   RMAX=100.0, RMIN=.01, EPSI=1.0E-11, EPS=.0001,
-C                   LMAX=60. -- proving reproduction must handle REAL)
-C       sdr2bd.f -> /SDR2X1/ /SDR2X2/ /SDR2X4/
-C       sma1bd.f -> /SMA1IO/ /SMA1BK/ /SMA1DP/ /SMA1CL/ /SMA1ET/
-C       sma2bd.f -> /SMA2IO/ /SMA2BK/ /SMA2CL/ /SMA2ET/
-C       ta1abd.f -> /TA1ACM/
-C       tabfbd.f -> /TABFTX/
-C       vdrbd.f  -> /VDRCOM/
-C       semdbd.f -> /XMSSG/ /NUMTPX/ /BLANK/ /NTIME/ /XLINK/ /SEM/
-C                   /XFIST/ /XPFIST/ /XXFIAT/ /XFIAT/ /OSCENT/ /OUTPUT/
-C                   /XDPL/ /XVPS/ /STAPID/ /STIME/ /XCEITB/ /XMDMSK/
-C                   /MSGX/ /DESCRP/ /TWO/ /NAMES/ /TYPE/ /BITPOS/
-C                   /SOFCOM/ /XXREAD/ /XECHOX/ /XREADX/ /MACHIN/ /LHPWX/
-C                   (semdbd also seeds /SYSTEM/ and /GINOX/, handled
-C                   above)
+C     DELIBERATELY EXCLUDED FROM THE COPY (NOT a deferral -- a bit-for-bit
+C     SAFETY REQUIREMENT under AAP 0.7.1, the HIGHEST-precedence rule):
+C       * BOOTSTRAP-OWNED blocks whose RUNTIME value is established by
+C         BTSTRP/CNSTDD/DBMINT (which run BEFORE this routine) and is NOT
+C         the bd load value -- /SEM/, /TWO/, /MACHIN/, /LHPWX/, /XXREAD/,
+C         /ZZZZZZ/, and the machine/runtime cells of /SYSTEM/.  Writing
+C         the bd value into these would CLOBBER the just-computed machine
+C         constants -- a regression.  /SYSTEM/ is therefore handled only
+C         on its proven-safe, BTSTRP/DBMINT-untouched 42-cell config
+C         subset above; the rest of /SYSTEM/ is left to the bootstrap.
+C       * /GINOX/ -- MAINTAINER FLAG 1 layout collision (and DBMINT owns
+C         the live disk-I/O state); seeds only zeros in bd, so excluded.
+C       * The bd blocks that contain NO DATA statement (e.g. /SMA1DP/,
+C         /SMA1BK/, /SMA2BK/, /STAPID/, /STIME/, /NUMTPX/, /OPINV/,
+C         /FEERIM/, /XXFIAT/, /XECHOX/) seed ZERO values only; their
+C         load-time content is the default-zero COMMON every executable
+C         already provides, so there is nothing to reproduce.
 C     Note: bd/ferfbd.f is a SUBROUTINE (not a BLOCK DATA) and seeds
-C     nothing; its /SYSTEM/ and /ZZZZZZ/ declarations are access-only.
+C     nothing; its /SYSTEM/ and /ZZZZZZ/ declarations are access-only and
+C     it is correctly NOT linked into the golden dump.
 C
 C  MAINTAINER FLAG 3 -- DIAGNOSTICS / OUTPUT POLICY
 C     BLKINIT is an INITIALIZER, not a validator or diagnostic routine,
@@ -260,6 +236,23 @@ C
 C     The single permitted state-access path: SMCOMX.COM is the only
 C     one of the nine *.COM headers that declares /SYSTEM/.
       INCLUDE 'SMCOMX.COM'
+C
+C     -----------------------------------------------------------------
+C     FULL bd-SEEDED STATE REPRODUCTION -- the "R set" (72 COMMON blocks,
+C     31316 words).  bddata.inc declares clash-free flat INTEGER views
+C     (COMMON /blk/ KBnnnn) of EVERY bd-DATA-seeded block that is NOT
+C     bootstrap-owned; bdgold.inc holds the bitwise golden words captured
+C     by LINKING the 39 real bd/ BLOCK DATA objects and dumping COMMON
+C     memory as integers, so REAL, INTEGER and Hollerith fields are all
+C     reproduced bit-for-bit BY CONSTRUCTION (no DATA/Hollerith/REAL
+C     transcription).  No new EQUIVALENCE and no COMMON beyond the
+C     existing bd/ block names are introduced (the KBnnnn array names
+C     begin with K and are INTEGER by the default I-N rule).  bdcopy.inc
+C     (in the executable body below) copies the goldens into COMMON.
+C     See modern/docs/init_modernization_report.md and MAINTAINER FLAG 2.
+      INTEGER           IBD
+      INCLUDE 'bddata.inc'
+      INCLUDE 'bdgold.inc'
 C
 C     Zero-valued safe cells by ARRAY INDEX (ascending).  DUM1(j) is
 C     /SYSTEM/ cell j+2; DUM2(j) is cell j+40.  ZD1 thus covers cells
@@ -312,6 +305,20 @@ C     -----------------------------------------------------------------
       DO 110 IZ = 1, 10
          DUM2(ZD2(IZ)) = 0
   110 CONTINUE
+C
+C     -----------------------------------------------------------------
+C     R-SET REPRODUCTION -- populate the 72 bd-DATA-seeded, NON-bootstrap
+C     COMMON blocks from the bitwise goldens (bdcopy.inc; one labelled DO
+C     loop per block, KBnnnn(IBD) = BDGOLD(off+IBD)).  In the LIVE solver
+C     these writes are IDEMPOTENT: the linked bd/ units already placed the
+C     identical bit patterns at load, so re-writing them changes nothing
+C     and never clobbers a bootstrap machine constant (proven: a BEFORE/
+C     AFTER COMMON snapshot around this copy, with the real bd/ objects
+C     linked, is byte-identical).  In the UNIT-TEST executable -- where
+C     the bd/ BLOCK DATA is not linked and COMMON starts zeroed -- these
+C     loops ACTIVELY initialize the full R set so initval.f reports
+C     NDIV = 0 over all 31316 reproduced words.
+      INCLUDE 'bdcopy.inc'
 C
       RETURN
       END

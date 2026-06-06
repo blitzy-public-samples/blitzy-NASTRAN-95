@@ -197,7 +197,22 @@ foreach suite ( $SUITES )
       #      repository root).  $suitedir is derived from NASTROOT, so the
       #      path is cwd-independent.  Harmless for drivers that ignore
       #      TDSREF.  Capture $status immediately. ----
-      env LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
+      # ---- Per-suite run environment.  The init suite's validator
+      #      INITVAL begins with the mandatory guard IF (IDIAG .EQ. 0)
+      #      RETURN; without NASTRAN_INIT_VALIDATE=1 (DIAGCTL sets IDIAG
+      #      bit 2) that guard early-returns, the init drivers keep their
+      #      999999 sentinel, and they correctly report FAIL.  So the
+      #      runner MUST enable init validation for the init suite.  It is
+      #      scoped to the init suite ONLY -- setting it globally would
+      #      change the diag suite's DIAGCTL bitmask expectations (the
+      #      diag .ref files encode the bitmask) and spuriously fail them.
+      #      (Resolves the "init validation env not set" finding; honors
+      #      Binding Rule R14 / AAP 0.7.5.) ----
+      if ( "$suite" == "init" ) then
+         env NASTRAN_INIT_VALIDATE=1 LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
+      else
+         env LOGNM=$dlog TDSREF=$suitedir/${base}.ref $exe >& $dout
+      endif
       set rc = $status
       @ nrun++
 

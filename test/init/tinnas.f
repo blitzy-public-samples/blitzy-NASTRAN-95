@@ -19,8 +19,9 @@ C
 C   CROSS-AGENT ASSUMED INTERFACE (owned by modern/ agents):
 C              SUBROUTINE NASTINIT           ! no args; reads
 C                                            ! NASTRAN_LEGACY_INIT
-C              SUBROUTINE DIAGCTL            ! sets IDIAG from NASTRAN_*
-C              SUBROUTINE INITVAL ( NDIV )   ! INTEGER NDIV out; 0=match
+C              SUBROUTINE DIAGCTL ( IDIAG )  ! sets IDIAG from NASTRAN_*
+C              SUBROUTINE INITVAL (IDIAG,NDIV) ! IDIAG in (guard 1st),
+C                                            ! INTEGER NDIV out; 0=match
 C
 C   TOGGLE ASSUMPTION (flagged for maintainer confirmation):
 C              NASTRAN_LEGACY_INIT unset (default) -> modern explicit
@@ -35,7 +36,7 @@ C              the failure tag and exits non-zero on a match.
 C***********************************************************************
       COMMON / LOGOUT / LOUT
       INTEGER          LOUT
-      INTEGER          NDIV, NEXP, NRAN, IVAL
+      INTEGER          NDIV, NEXP, NRAN, IVAL, IDIAG
       LOGICAL          OK
       CHARACTER*80     LOG, RPATH, BUF
       CHARACTER*16     KEY
@@ -75,10 +76,13 @@ C     --- read expectations from the ref (best effort) ----------------
   200 CONTINUE
 C
 C     --- exercise the orchestrator, then independently validate ------
+C     DIAGCTL returns the NASTRAN_* mask in its IDIAG OUTPUT argument;
+C     INITVAL takes IDIAG as its first argument so its guard is the
+C     first executable statement (Binding Rule R10).
       CALL NASTINIT
-      CALL DIAGCTL
+      CALL DIAGCTL ( IDIAG )
       NDIV = 999999
-      CALL INITVAL ( NDIV )
+      CALL INITVAL ( IDIAG, NDIV )
       WRITE ( 3, 9004 ) NDIV
 C
 C     --- evaluate the result -----------------------------------------

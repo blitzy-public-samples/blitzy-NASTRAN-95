@@ -18,7 +18,8 @@ C
 C   CROSS-AGENT INTERFACE (owned by modern/ agents; verified in tree):
 C              SUBROUTINE DIAGCTL ( IDIAG )   ! sets IDIAG, NASTRAN_*
 C              SUBROUTINE BLKINIT            ! explicit ordered init
-C              SUBROUTINE INITVAL ( NDIV )   ! INTEGER NDIV out; 0=match
+C              SUBROUTINE INITVAL (IDIAG,NDIV) ! IDIAG in (guard 1st),
+C                                            ! INTEGER NDIV out; 0=match
 C
 C   RUN MODE : export NASTRAN_INIT_VALIDATE=1; leave NASTRAN_LEGACY_INIT
 C              unset (modern path).  INITVAL is gated by IDIAG, so when
@@ -77,7 +78,7 @@ C     DIAGCTL returns the NASTRAN_* mask in its IDIAG OUTPUT argument.
       CALL DIAGCTL (IDIAG)
       CALL BLKINIT
       NDIV = 999999
-      CALL INITVAL ( NDIV )
+      CALL INITVAL ( IDIAG, NDIV )
       WRITE ( 3, 9004 ) NDIV
 C
 C     --- evaluate the result -----------------------------------------

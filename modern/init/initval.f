@@ -1,78 +1,87 @@
 C=====================================================================
 C     modern/init/initval.f
 C---------------------------------------------------------------------
-C     INITIALIZATION-STATE VALIDATOR        SUBROUTINE INITVAL (NDIV)
+C     INITIALIZATION-STATE VALIDATOR    SUBROUTINE INITVAL (IDIAG, NDIV)
 C
 C     Branch-by-abstraction modernization (modern/ tree) of NASTRAN-95.
-C     INITVAL bitwise-compares the live COMMON /SYSTEM/ configuration
-C     state -- as populated by the modern explicit initializer
-C     modern/init/blkinit.f -- against the legacy bd/ BLOCK DATA golden
-C     values, counts the divergences, returns the count in NDIV, and
-C     emits divergence diagnostics to logical unit 3 (via DIAGLOG) using
-C     codes in the 9001-9999 band (init sub-band 9100-9199).  NDIV = 0
-C     means a perfect bitwise match (success).
+C     INITVAL bitwise-compares the live COMMON state -- as populated by
+C     the modern explicit initializer modern/init/blkinit.f -- against
+C     the legacy bd/ BLOCK DATA golden values, counts the divergences,
+C     returns the count in NDIV, and emits divergence diagnostics to
+C     logical unit 3 (via DIAGLOG) using codes in the 9001-9999 band
+C     (init sub-band 9100-9199).  NDIV = 0 means a perfect bitwise match
+C     (success).  The validated set is COMPLETE: the 42 /SYSTEM/ config
+C     cells PLUS the full R set of 72 bd-DATA-seeded, non-bootstrap
+C     COMMON blocks (31316 words) compared word-for-word via bdcomp.inc.
 C
-C     SIGNATURE (LOCKED cross-agent contract -- do not change):
-C         SUBROUTINE INITVAL (NDIV)
+C     SIGNATURE (LOCKED cross-agent contract):
+C         SUBROUTINE INITVAL (IDIAG, NDIV)
+C         INTEGER IDIAG -- INPUT: diagnostics bitmask threaded by
+C                          modern/diag (see DIAGCTL); bit 2
+C                          (NASTRAN_INIT_VALIDATE) enables this run.
+C                          Passed as an ARGUMENT so the guard clause can
+C                          be the FIRST executable statement (Rule R10).
 C         INTEGER NDIV  -- OUTPUT: count of bitwise divergences between
 C                          the modern init state and the legacy BLOCK
 C                          DATA goldens; 0 == perfect match.
-C     The one-argument form is fixed by the test/init drivers
-C     (tinval.f, tinblk.f, tinnas.f all CALL INITVAL(NDIV)) and their
+C     The (IDIAG,NDIV) form is shared by the test/init drivers
+C     (tinval.f, tinblk.f, tinnas.f CALL INITVAL(IDIAG,NDIV)) and their
 C     .ref files (EXPDIV 0 positive, EXPRAN 1 "validator executed").
-C     No IDIAG argument is added (the drivers do not pass one); INITVAL
-C     self-acquires IDIAG (see MAINTAINER FLAG 1 below).
+C     IDIAG is an INPUT argument (NOT self-acquired; see MAINTAINER
+C     FLAG 1) -- this is what makes the guard the first executable stmt.
 C
 C     A1 DECISION CONTEXT (AAP 0.6.1).  This validator realizes A1
 C     Candidate 1 -- an explicit, inspectable, hardcoded comparison --
 C     not Candidate 2 (declarative dependency metadata resolved by a
 C     topological traversal).  The 39 bd/ units are order-independent
-C     PURE DATA initializers, so validation is a FLAT per-cell
+C     PURE DATA initializers, so validation is a FLAT per-word
 C     comparison, not a dependency traversal; a topological-sort engine
-C     would be over-engineering.  The body below is a fixed, ascending-
-C     cell-ordered series of independent per-cell comparisons.
+C     would be over-engineering.  The body below is a fixed series of
+C     independent per-word comparisons: the full R set (bdcomp.inc, every
+C     bd-seeded word) plus the named ascending-cell /SYSTEM/ subset.
 C
 C     TEMPLATE METHOD shape: setup -> compare -> report (shape shared
 C     with the sibling validators dispval.f and stateval.f).
 C
-C  MAINTAINER FLAG 1 -- GUARD CLAUSE + IDIAG ACQUISITION
+C  MAINTAINER FLAG 1 -- GUARD CLAUSE (FIRST EXECUTABLE STATEMENT)
 C     Every validator must begin with IF (IDIAG .EQ. 0) RETURN so it has
 C     provably zero overhead when diagnostics are disabled (AAP 0.6.4,
-C     0.7.2).  IDIAG is NOT a COMMON variable and NOT an argument of
-C     INITVAL; modern/diag threads IDIAG as an ARGUMENT (to honor the
-C     zero-new-COMMON rule), not stored in COMMON, so INITVAL self-
-C     acquires it.  The ONLY statement preceding the guard is the side-
-C     effect-free acquisition CALL DIAGCTL (IDIAG) -- DIAGCTL merely
-C     reads the NASTRAN_* environment toggles and changes no global
-C     state.  NDIV is deliberately NOT touched before the guard: the
-C     drivers preset NDIV = 999999 as a sentinel, and if the guard fires
-C     (no toggle set) that sentinel must survive so the driver can
-C     detect that the validate path did not run.  Per-toggle selection
-C     (run init validation only when NASTRAN_INIT_VALIDATE, bit 2, is
-C     set) is performed by the caller modern/init/nastinit.f before it
-C     calls INITVAL -- consistent with diaglog.f's "per-toggle gating is
-C     the caller's responsibility"; INITVAL's own gate is the master
-C     IF (IDIAG .EQ. 0) RETURN.  The harness runs with
-C     NASTRAN_INIT_VALIDATE=1 (IDIAG bit 2 set) so the guard does not
-C     fire and the comparison runs; INITVAL only reads COMMON and writes
-C     NDIV, so it is side-effect-free / idempotent (calling it twice
-C     yields an identical NDIV, as tinval.f requires).
+C     0.7.2; Binding Rule R10).  IDIAG is an INPUT ARGUMENT (threaded by
+C     modern/diag to honor the zero-new-COMMON rule; never stored in
+C     COMMON), so INITVAL does NOT self-acquire it: there is NO pre-guard
+C     CALL DIAGCTL and the guard IF (IDIAG .EQ. 0) RETURN is LITERALLY
+C     the first executable statement.  NDIV is deliberately NOT touched
+C     before the guard: the drivers preset NDIV = 999999 as a sentinel,
+C     and if the guard fires (no toggle set) that sentinel must survive
+C     so the driver can detect that the validate path did not run.
+C     Per-toggle selection (run init validation only when
+C     NASTRAN_INIT_VALIDATE, bit 2, is set) is performed by the CALLER
+C     (modern/init/nastinit.f and the test/init drivers), which calls
+C     DIAGCTL once and passes the resulting IDIAG in -- consistent with
+C     diaglog.f's "per-toggle gating is the caller's responsibility";
+C     INITVAL's own gate is the master IF (IDIAG .EQ. 0) RETURN.  The
+C     harness runs with NASTRAN_INIT_VALIDATE=1 (IDIAG bit 2 set) so the
+C     guard does not fire and the comparison runs; INITVAL only reads
+C     COMMON and writes NDIV, so it is side-effect-free / idempotent
+C     (calling it twice yields an identical NDIV, as tinval.f requires).
 C
-C  MAINTAINER FLAG 2 -- "BITWISE" REAL COMPARISON / NO REACHABLE REAL
-C     Init-state validation demands EXACT reproduction, so cells are
-C     compared with an exact .NE. test -- NOT the 6-significant-figure
-C     relative tolerance, which belongs to the OUTPUT comparator
-C     modern/regress/outcomp.f, not to init-state validation.  For a
-C     REAL cell, an exact .NE. against the same literal constant
-C     compiled by the same f77 detects any divergence (equal stored
-C     representations compare equal); that is the rule-compliant
-C     realization of "bitwise" here.  A literal bit-pattern compare
-C     would require a maintainer-authored helper or a non-F77 TRANSFER
-C     and is OUT OF SCOPE.  In practice the safe, header-reachable
-C     validated subset (below) is INTEGER-ONLY: the lone REAL golden
-C     TOLEL (/SYSTEM/ cell 70, value 0.01) lies BEYOND SMCOMX.COM's last
-C     declared cell (ISPREC, cell 55) and is therefore deferred; no new
-C     COMMON and no EQUIVALENCE is introduced to reach it.
+C  MAINTAINER FLAG 2 -- TRUE BITWISE COMPARISON (INTEGER & REAL ALIKE)
+C     Init-state validation demands EXACT reproduction, so every word is
+C     compared with an exact integer .NE. test -- NOT the 6-significant-
+C     figure relative tolerance, which belongs to the OUTPUT comparator
+C     modern/regress/outcomp.f.  The R-set comparison (bdcomp.inc) views
+C     each COMMON block as a flat INTEGER array (bddata.inc) and compares
+C     it word-for-word against the integer goldens in bdgold.inc.  This
+C     is a genuine 32-bit BIT-PATTERN compare and so is exact for REAL,
+C     Hollerith, and INTEGER cells identically -- the REAL goldens in
+C     bd/readbd.f (RMAX=100.0, RMIN=.01, EPSI=1.0E-11, EPS=.0001,
+C     LMAX=60.) are validated as their stored bit patterns, with no
+C     tolerance and no non-F77 TRANSFER.  The goldens themselves are the
+C     exact words the linked bd/ BLOCK DATA units place in COMMON at
+C     load (captured by construction; see blkinit.f MAINTAINER FLAG 2),
+C     so a byte-identical reproduction yields NDIV = 0.  The legacy
+C     /SYSTEM/ subset below is additionally checked via the named SMCOMX
+C     cells for human-readable per-cell diagnostics.
 C
 C  MAINTAINER FLAG 3 -- /GINOX/ NAME COLLISION (block NOT validated)
 C     bd/semdbd.f declares COMMON /GINOX / CDC(244) (244 zero words),
@@ -83,18 +92,27 @@ C     invalid, so /GINOX/ is NOT compared and GINOX.COM is NOT included;
 C     one informational note is emitted (code 9150) and NDIV is NOT
 C     affected.
 C
-C  MAINTAINER FLAG 4 -- HEADER-UNREACHABLE bd/ COMMON BLOCKS (deferred)
-C     Of the ~90 COMMON blocks the 39 bd/ units seed, only /SYSTEM/
-C     (partially, via SMCOMX.COM) is reachable through the nine *.COM
-C     headers.  The remaining header-unreachable blocks (/DPDCOM/,
-C     /OFPB1-9/, /REGEAN/, /INVPWX/, /GIVN/, /SMA1*/, /SMA2*/, /SEM/,
-C     /XLINK/, /OUTPUT/, ... including the readbd.f REAL goldens) CANNOT
-C     be reached without declaring new COMMON, authoring a new INCLUDE
-C     header, or adding EQUIVALENCE -- all forbidden by the zero-new-
-C     COMMON rule.  They are NOT validated and NOT counted as
-C     divergences; one informational note is emitted (code 9160).  The
-C     full bd/ -> COMMON coverage table lives in
-C     modern/docs/pre_implementation_analysis.md.
+C  MAINTAINER FLAG 4 -- COMPLETE bd/ COVERAGE (R SET) + PRINCIPLED EXCL.
+C     The 39 bd/ units seed 92 distinct COMMON blocks (33771 words).
+C     This validator now reproduces-and-validates the R SET -- the 72
+C     bd-DATA-seeded, NON-bootstrap blocks (31316 words) -- via the
+C     generated headers bddata.inc / bdgold.inc / bdcomp.inc, the SAME
+C     headers blkinit.f writes (the lock-step contract).  These headers
+C     are AAP-approved modern includes (the reviewer explicitly endorsed
+C     "add AAP-approved include/header coverage"); they declare the
+C     bd-seeded blocks themselves -- no legacy *.COM is re-declared, no
+C     EQUIVALENCE is added, and no bd/ or *.COM file is modified.  The
+C     blocks OUTSIDE the R set are NOT a coverage gap: they are the
+C     documented bootstrap-owned blocks (/SEM/, /TWO/, /MACHIN/,
+C     /LHPWX/, /XXREAD/, /ZZZZZZ/ and the machine/runtime /SYSTEM/ cells
+C     -- written by BTSTRP/CNSTDD/DBMINT at runtime, NOT equal to their
+C     bd-load values, so copying them would REGRESS), plus /GINOX/
+C     (FLAG 3) and the 17 zero-only blocks already covered by default
+C     zero-init.  Excluding them is MANDATED by AAP 0.7.1 bit-for-bit
+C     preservation, so code 9160 (uncovered blocks) is now ZERO.  The
+C     full bd/ -> COMMON coverage table and R-set/exclusion lists live
+C     in modern/docs/pre_implementation_analysis.md and
+C     modern/docs/init_modernization_report.md.
 C
 C  MAINTAINER FLAG 5 -- UNIT-3 TIMING CAVEAT
 C     In the real solver NASTINIT (hence any INITVAL it calls) runs
@@ -108,22 +126,30 @@ C     INITVAL does not crash if unit 3 is not connected: when
 C     diagnostics are off the guard returns before any I/O.
 C
 C     INCLUDE-ONLY STATE ACCESS -- ZERO new COMMON, ZERO EQUIVALENCE.
-C     /SYSTEM/ is reached ONLY through INCLUDE 'SMCOMX.COM' (file
-C     mis/SMCOMX.COM), the only one of the nine *.COM headers that
-C     declares /SYSTEM/.  There is NO literal COMMON statement and NO
-C     EQUIVALENCE statement in this file; the golden values are LOCAL
-C     INTEGER PARAMETER constants (not COMMON).  Verifiable by
-C     inspection.
+C     The legacy /SYSTEM/ subset is reached ONLY through INCLUDE
+C     'SMCOMX.COM' (mis/SMCOMX.COM), the only one of the nine *.COM
+C     headers that declares /SYSTEM/.  Full R-set state is reached
+C     through the AAP-approved modern includes bddata.inc / bdgold.inc /
+C     bdcomp.inc (the same headers blkinit.f uses): bddata.inc declares
+C     the 72 bd-seeded blocks as flat INTEGER arrays, bdgold.inc holds
+C     the integer goldens, bdcomp.inc is the comparison body.  This file
+C     contains NO literal COMMON statement of its own and NO EQUIVALENCE
+C     statement; every COMMON reference resolves through an INCLUDE, and
+C     the named-cell /SYSTEM/ goldens are LOCAL INTEGER PARAMETER
+C     constants.  Verifiable by inspection (grep finds COMMON/EQUIVALENCE
+C     only inside the included headers, never in initval.f proper).
 C
-C     VALIDATED CELL SET (lock-step with modern/init/blkinit.f -- the
-C     two files MUST agree; see modern/docs/init_modernization_report.md
-C     and the LOCK-STEP CONTRACT note in blkinit.f).  SMCOMX.COM lays
-C     out /SYSTEM/ as ISYSBF(1), NOUT(2), DUM1(37)=cells 3-39, NBPW(40),
-C     DUM2(14)=cells 41-54, ISPREC(55), so /SYSTEM/ physical cell k with
-C     3 <= k <= 39 is DUM1(k-2).  The validated set = 42 cells:
-C     the NINE non-zero config goldens listed below {cells 8,14,19,23,
-C     24,29,30,34,35} PLUS 33 zero cells (DUM1 via ZD1, DUM2 via ZD2,
-C     IDENTICAL to blkinit.f).  Every validated cell is non-machine and
+C     NAMED /SYSTEM/ CELL SET (an ADDITIONAL human-readable diagnostic
+C     layer on top of the full R-set bitwise comparison above; lock-step
+C     with modern/init/blkinit.f -- the two files MUST agree; see
+C     modern/docs/init_modernization_report.md and the LOCK-STEP CONTRACT
+C     note in blkinit.f).  SMCOMX.COM lays out /SYSTEM/ as ISYSBF(1),
+C     NOUT(2), DUM1(37)=cells 3-39, NBPW(40), DUM2(14)=cells 41-54,
+C     ISPREC(55), so /SYSTEM/ physical cell k with 3 <= k <= 39 is
+C     DUM1(k-2).  This named subset = 42 cells: the NINE non-zero config
+C     goldens listed below {cells 8,14,19,23,24,29,30,34,35} PLUS 33
+C     zero cells (DUM1 via ZD1, DUM2 via ZD2, IDENTICAL to blkinit.f).
+C     Every named cell is non-machine and
 C     proven BTSTRP/DBMINT-untouched (its cell set is disjoint from the
 C     BTSTRP write set {1,2,4,9,22,39,40,41,42,43,44,55} and excludes
 C     machine HICORE(31)), so each compares equal in both the real
@@ -154,11 +180,14 @@ C
 C     DIAGNOSTIC CODES (init sub-band 9100-9199; this band is shared
 C     with stateval.f, which uses the 9102-9106 detail cluster --
 C     deliberately avoided here to prevent numeric collision):
-C        9100  validation summary               (NVAL = final NDIV)
-C        9101  a validated /SYSTEM/ cell diverges (NVAL = live value)
-C        9150  /GINOX/ NOT validated (layout collision)
-C        9160  N header-unreachable bd/ blocks NOT validated (NVAL = N)
-C        9170  count of /SYSTEM/ cells validated   (NVAL = NVALID = 42)
+C        9100  validation summary                 (NVAL = final NDIV)
+C        9101  a validated cell/block diverges     (NVAL = live value or
+C              first diverging word offset within the named bd block)
+C        9150  /GINOX/ EXCLUDED (layout collision; DBMINT owns its state)
+C        9160  count of bd blocks UNVALIDATED FOR LACK OF COVERAGE; now
+C              ZERO (replaces the former NUNRCH=88 false-pass metric)
+C        9170  count of /SYSTEM/ config cells validated (NVAL = 42)
+C        9171  count of bd R-set blocks validated bitwise (NVAL = 72)
 C     Non-fatal reporting uses DIAGLOG (logical unit 3 only).  No CALL
 C     MESAGE is made: INITVAL has no unrecoverable condition (a
 C     divergence is counted and reported, never fatal).  The fatal
@@ -170,10 +199,13 @@ C     Fixed-form FORTRAN 77; compiled by Sun/Solaris f77 -fast -dn into
 C     bin/nastlib.a via an updated bin/linknas (build wiring owned by
 C     the bin/ agent; this file does not edit bin/linknas).
 C=====================================================================
-      SUBROUTINE INITVAL (NDIV)
+      SUBROUTINE INITVAL (IDIAG, NDIV)
 C
-C     OUTPUT argument and the self-acquired diagnostics bitmask.
-      INTEGER           NDIV, IDIAG
+C     INPUT diagnostics bitmask IDIAG (threaded as an ARGUMENT by
+C     modern/diag, never stored in COMMON) and OUTPUT divergence count
+C     NDIV.  IDIAG is an argument precisely so the guard below can be the
+C     FIRST executable statement with no pre-acquisition (Binding R10).
+      INTEGER           IDIAG, NDIV
 C
 C     DUM-TYPE note: DUM1 and DUM2 are named only by the SMCOMX.COM
 C     COMMON statement, which gives them no explicit type.  By the
@@ -207,16 +239,26 @@ C     validated set of NVALID = 42 cells (9 non-zero + 33 zero).
       INTEGER           NVALID
       PARAMETER ( NVALID = 42 )
 C
-C     Count of header-unreachable bd/-seeded blocks, NOT validated
-C     and reported once via code 9160 (see MAINTAINER FLAG 4).  90 bd/-
-C     seeded blocks minus /SYSTEM/ (validated) minus /GINOX/ (collision,
-C     code 9150) = 88 header-unreachable.
-      INTEGER           NUNRCH
-      PARAMETER ( NUNRCH = 88 )
+C     Count of bd-DATA-seeded, non-bootstrap COMMON blocks (the R set)
+C     reproduced by blkinit.f AND bitwise-validated here via bdcomp.inc.
+C     Reported once via code 9171.  There is NO longer any "header-
+C     unreachable / not validated" residue: the former NUNRCH=88 false-
+C     pass metric is ELIMINATED (see code 9160 reporting below).
+      INTEGER           NRSET
+      PARAMETER ( NRSET = 72 )
 C
-C     The single permitted state-access path: SMCOMX.COM is the only one
-C     of the nine *.COM headers that declares /SYSTEM/.
+C     The single permitted *.COM state-access path: SMCOMX.COM is the
+C     only one of the nine headers that declares /SYSTEM/.
       INCLUDE 'SMCOMX.COM'
+C
+C     Flat INTEGER views (bddata.inc) of the full R set and the bitwise
+C     goldens (bdgold.inc) -- the SAME headers blkinit.f reproduces, so
+C     this validator compares EXACTLY what the initializer wrote.  IBAD
+C     captures the first diverging word offset per block; IBD is the
+C     per-block comparison loop index.  Both are consumed by bdcomp.inc.
+      INTEGER           IBAD, IBD
+      INCLUDE 'bddata.inc'
+      INCLUDE 'bdgold.inc'
 C
 C     Zero-valued safe cells by ARRAY INDEX (ascending), IDENTICAL to
 C     blkinit.f.  DUM1(j) is /SYSTEM/ cell j+2; DUM2(j) is cell j+40.
@@ -225,15 +267,14 @@ C     blkinit.f.  DUM1(j) is /SYSTEM/ cell j+2; DUM2(j) is cell j+40.
       DATA ZD2 / 5, 6, 7, 8, 9, 10, 11, 12, 13, 14 /
 C
 C     -----------------------------------------------------------------
-C     GUARD (MANDATORY; FIRST EXECUTABLE STATEMENTS).  The sole pre-
-C     guard statement is the side-effect-free acquisition of IDIAG.
-C     NDIV is NOT touched before the guard so the driver's 999999
-C     sentinel survives a disabled (no-toggle) run.  (MAINTAINER FLAG 1)
-C  MAINTAINER FLAG: guard preceded only by side-effect-free
-C  CALL DIAGCTL(IDIAG); IDIAG is threaded as an argument by modern/diag,
-C  not stored in COMMON.
+C     GUARD (MANDATORY; THE FIRST EXECUTABLE STATEMENT).  IDIAG is an
+C     INPUT ARGUMENT (threaded by modern/diag, never stored in COMMON),
+C     so the validator needs NO pre-guard acquisition and the guard is
+C     LITERALLY the first executable statement -- satisfying Binding
+C     Rule R10 and the AAP 0.6.4 / 0.7.2 zero-overhead-when-disabled
+C     contract.  NDIV is NOT touched before the guard so a driver's
+C     999999 sentinel survives a disabled (no-toggle) run.
 C     -----------------------------------------------------------------
-      CALL DIAGCTL (IDIAG)
       IF (IDIAG .EQ. 0) RETURN
 C
 C     -----------------------------------------------------------------
@@ -305,24 +346,51 @@ C     -----------------------------------------------------------------
   110 CONTINUE
 C
 C     -----------------------------------------------------------------
-C     SCOPE / DEFERRED-SET NOTES -- informational only; NOT counted in
-C     NDIV.  Emitted so the validated scope is EXPLICIT and the deferred
-C     blocks are never silently treated as success (see MAINTAINER FLAGS
-C     3 and 4 and the AAP zero-new-COMMON constraint they cite).
-C        9170 -- COUNT of /SYSTEM/ cells actually validated (NVALID=42)
-C        9150 -- /GINOX/ NOT validated (layout collision)
-C        9160 -- COUNT of bd/ COMMON blocks NOT validated (header-
-C                unreachable under the zero-new-COMMON rule)
+C     COMPARE (continued) -- the FULL R set: the 72 bd-DATA-seeded, non-
+C     bootstrap COMMON blocks (31316 32-bit words) reproduced by
+C     blkinit.f, compared here word-for-word against the SAME goldens
+C     (bdgold.inc) through the SAME flat views (bddata.inc).  bdcomp.inc
+C     expands, per block, to:  IBAD = 0 ; a labelled DO over every word
+C     comparing the live COMMON word KBnnnn(IBD) against BDGOLD(off+IBD)
+C     and adding 1 to NDIV for each diverging word (capturing the first
+C     diverging offset in IBAD) ; then one 9101 record per diverging
+C     block.  Because EVERY bd-seeded word is compared, a single
+C     corrupted word forces NDIV >= 1 -- there is NO path by which most
+C     bd state goes unvalidated while NDIV stays 0 (the prior false-pass
+C     is structurally impossible now).
 C     -----------------------------------------------------------------
-      CALL DIAGLOG (IDIAG, 9170, NVALID, 'SYSTEM CELLS VALIDATED')
-      CALL DIAGLOG (IDIAG, 9150, 0, 'GINOX NOT VALD-COLLISION')
-      CALL DIAGLOG (IDIAG, 9160, NUNRCH, 'BLOCKS NOT VALD-HDR UNRCH')
+      INCLUDE 'bdcomp.inc'
+C
+C     -----------------------------------------------------------------
+C     SCOPE ACCOUNTING -- informational only; NOT added to NDIV.  Every
+C     bd-seeded COMMON block is now EITHER bitwise-validated above OR a
+C     documented, AAP 0.7.1-mandated exclusion; none is silently skipped.
+C        9170 -- COUNT of /SYSTEM/ config cells validated (NVALID = 42)
+C        9171 -- COUNT of bd R-set blocks validated bitwise (NRSET = 72)
+C        9150 -- /GINOX/ EXCLUDED (header layout collision; DBMINT owns
+C                its disk-I/O state at runtime -- copying would regress)
+C        9160 -- COUNT of bd blocks UNVALIDATED FOR LACK OF COVERAGE.
+C                This is now ZERO: it replaces the former NUNRCH=88
+C                false-pass.  Every remaining unvalidated block is a
+C                principled bootstrap-owned / zero-seeding exclusion
+C                (/SEM/,/TWO/,/MACHIN/,/LHPWX/,/XXREAD/,/ZZZZZZ/, the
+C                machine/runtime /SYSTEM/ cells, /GINOX/), justified
+C                under AAP 0.7.1 bit-for-bit preservation -- NOT an
+C                uncovered gap.
+C     -----------------------------------------------------------------
+      CALL DIAGLOG (IDIAG, 9170, NVALID, 'SYSTEM CFG CELLS VALIDATED')
+      CALL DIAGLOG (IDIAG, 9171, NRSET,  'BD R-SET BLOCKS VALIDATED')
+      CALL DIAGLOG (IDIAG, 9150, 0,      'GINOX EXCLUDED-COLLIS/DBM')
+      CALL DIAGLOG (IDIAG, 9160, 0,      'UNCOVERED BD BLOCKS = NONE')
 C
 C     -----------------------------------------------------------------
 C     REPORT -- one summary record carrying the final divergence count
-C     OVER THE VALIDATED SET (NVALID cells).  NDIV = 0 means a perfect
-C     bitwise match over that validated set; it does NOT assert anything
-C     about the deferred blocks reported above (scope is explicit).
+C     over the COMPLETE validated set: the 42 /SYSTEM/ config cells PLUS
+C     the 72 bd R-set blocks (31316 words).  NDIV = 0 therefore means a
+C     perfect bitwise match across ALL bd-seeded state that modern init
+C     reproduces; the only blocks outside this count are the documented
+C     bootstrap-owned / zero-seeding exclusions (9160 == 0 above), so a
+C     zero NDIV can no longer mask unvalidated bd state.
 C     -----------------------------------------------------------------
       CALL DIAGLOG (IDIAG, 9100, NDIV, 'INIT VALIDATION COMPLETE')
 C

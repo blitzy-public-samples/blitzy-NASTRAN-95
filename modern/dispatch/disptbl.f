@@ -64,15 +64,18 @@ C           sub-band 9300-9399), per AAP 0.7.2.  The legacy -37/-50
 C           codes are deliberately NOT reused for this path.
 C       (3) The MODX 43 branch references LINKNM (/SEM/) and LINKNO
 C           (/SYSTEM/), neither of which is exposed by name in the
-C           nine *.COM headers.  Per NASTRAN's per-routine COMMON
-C           convention (and the AAP's explicit allowance) minimal
-C           inline WINDOWS of these two EXISTING blocks are declared
-C           below, positioned to match xsem00.f exactly (LINKNM at
-C           words 4-18 of /SEM/, LINKNO at word 22 of /SYSTEM/).  They
-C           are used ONLY by the MODX 43 branch and overlay storage
-C           that TMTOGO and others view differently -- intentional
-C           NASTRAN overlay convention, flagged for confirmation.  No
-C           EQUIVALENCE and no new COMMON block are introduced.
+C           nine *.COM headers.  Rather than re-declare these two
+C           EXISTING blocks inline (which Binding Rule R8 disallows),
+C           their windows are centralized in the AAP-approved modern
+C           header modern/dispatch/dispsem.inc and pulled in by a single
+C           INCLUDE below -- the same include-based state-access policy
+C           used by modern/init/bddata.inc.  The window offsets match
+C           xsem00.f exactly (LINKNM at words 4-18 of /SEM/, LINKNO at
+C           word 22 of /SYSTEM/).  They are used ONLY by the MODX 43
+C           branch and overlay storage that TMTOGO and others view
+C           differently -- intentional NASTRAN overlay convention,
+C           flagged for confirmation.  No EQUIVALENCE and no new COMMON
+C           block are introduced (both blocks pre-exist).
 C
 C     This routine carries ZERO diagnostic overhead: no IDIAG, no
 C     guard clause, no DIAGLOG, no WRITE.  Validation and logging live
@@ -80,12 +83,14 @@ C     in modern/dispatch/dispval.f and modern/diag/diaglog.f.
 C=====================================================================
       INTEGER MODX, KTIME, SUBNAM(2)
 C
-C     Minimal inline windows of the EXISTING /SEM/ and /SYSTEM/ blocks
-C     (MODX 43 only).  ISEM(3) places LINKNM(1..15) at /SEM/ words
-C     4-18 (so LINKNM(8)=word 11, LINKNM(1)=word 4); ISYS(21) places
-C     LINKNO at /SYSTEM/ word 22 -- identical to mis/xsem00.f.
-      COMMON /SEM/    ISEM(3), LINKNM(15)
-      COMMON /SYSTEM/ ISYS(21), LINKNO
+C     Windows of the EXISTING /SEM/ and /SYSTEM/ blocks (MODX 43 only),
+C     centralized in an AAP-approved modern header rather than declared
+C     inline here, so disptbl.f's body carries NO literal COMMON
+C     statement (Binding Rule R8).  dispsem.inc places LINKNM(1..15) at
+C     /SEM/ words 4-18 (LINKNM(8)=word 11, LINKNM(1)=word 4) and LINKNO
+C     at /SYSTEM/ word 22 -- identical to mis/xsem00.f.  No new COMMON
+C     and no EQUIVALENCE is introduced (both blocks pre-exist).
+      INCLUDE 'dispsem.inc'
 C
 C     Hollerith 'DISPTBL ' packed into a 2-word INTEGER array for the
 C     NAME argument of MESAGE (MESAGE(NO,PARM,NAME), INTEGER NAME(2)).

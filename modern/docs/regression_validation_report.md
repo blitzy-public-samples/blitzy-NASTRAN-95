@@ -29,7 +29,8 @@ modernization against any behavioral drift. Specifically, it records:
   `test/run_units.csh`) and the driver output contract;
 - the **five integration inputs** that drive the dispatch cross-check and the
   per-deck regression, plus the full **132-deck** sweep;
-- the **known data anomaly** in `demoout/t01231a.out`; and
+- the **shipped-master `NUL`-padding handling** for `demoout/t01231a.out` and
+  why the full 132-deck gate now passes; and
 - the **success criteria** that close out the mechanism.
 
 The design pattern is **golden-master / characterization testing**: the existing
@@ -234,10 +235,24 @@ volatility from the main loop. It:
   containing `SOLARIS NASTRAN`, and skips every cover/banner line before it;
 - skips the volatile page header (`SOLARIS NASTRAN`) and timing tail (`DATE:`,
   `END TIME`, `WALL CLOCK`);
+- skips the volatile **tape-provenance** lines — those naming the *machine that
+  wrote a tape* — via the machine-name-**independent** signature `INDEX(BUF,
+  'MACHINE') > 0 .AND. INDEX(BUF, 'BY ') > 0`. These are the only `demoout/`
+  lines that carry an environment-specific machine name (NUL-padded in the
+  shipped masters); the signature matches symmetrically in both the reference
+  and a fresh candidate (which carries a real machine name rather than NULs),
+  and it deliberately does **not** match the legitimate
+  `... ON 32-BIT WORD MACHINE` warning, which lacks `BY `;
 - strips the column-1 carriage control (`CONT = BUF(2:256)`);
-- normalizes any control byte (`ICHAR < 32`, including a trailing CR) to a blank;
-  and
-- skips lines that are blank after stripping.
+- normalizes a carriage return / line feed (`ICHAR = 13` or `10`) to a blank and
+  an embedded `NUL` (`ICHAR = 0`) to a blank while recording `HADNUL` for the
+  line; **any other** control byte (`ICHAR < 32`) marks the record as embedded
+  binary and raises a hard error (`IERR = 1`, `IEOF = 1`); and
+- skips lines that are blank after stripping. As a final safety net, a `NUL`
+  that **survives every volatile skip** (i.e. `HADNUL` is set on a line that is
+  *not* a recognized volatile line) is treated as embedded binary and raises the
+  same hard error — so genuine binary content is still rejected while the known
+  tape-provenance NUL padding is normalized away.
 
 ### Self-containment and discipline (verifiable by inspection)
 
@@ -352,18 +367,43 @@ the same comparator methodology.
 
 ---
 
-## Known Data Anomaly — `t01231a.out`
+## Shipped Golden-Master NUL Padding — `t01231a.out` (RESOLVED)
 
-`demoout/t01231a.out` contains **embedded binary (non-text) content** — twenty
-`NUL` (`0x00`) bytes beginning partway through the file. When `OUTCOMP` reads it,
-the read raises a hard error, so the helper sets `IERR = 1`, which propagates as
-`IRET = 1`, and that file is therefore reported `FAIL:` under the harness.
+`demoout/t01231a.out` carries **`NUL` (`0x00`) padding** on five
+**tape-provenance** lines — the lines that name the *machine that wrote a tape*
+(e.g. `... WRITTEN BY <machine-name> MACHINE ...` and
+`(BY <machine-name> MACHINE, ... RECORDS)`). In the shipped master the
+environment-specific machine name is recorded as four `NUL` bytes; a fresh run on
+a different host would instead carry that host's real machine name. Either way
+the *machine name* is **inherently volatile**, exactly like the per-page date and
+page number, and must not drive a comparison result.
 
-This is a **pre-existing data condition in the shipped golden masters**, not a
-modernization defect, and it is **recorded here so maintainers expect it**. It is
-**not** one of the five clean integration inputs above; the comparator's behavior
-(treating an unreadable reference as a failure rather than a silent pass) is the
-correct, conservative response.
+**Resolution (delivered in `outcomp.f`).** The comparator treats these lines as
+volatile and the `NUL` padding as text-equivalent:
+
+1. An embedded `NUL` (`ICHAR = 0`) is **normalized to a blank** while the line is
+   flagged `HADNUL` (carriage return / line feed are likewise normalized to a
+   blank).
+2. The five tape-provenance lines are **skipped** by the machine-name-independent
+   signature `INDEX(BUF,'MACHINE') > 0 .AND. INDEX(BUF,'BY ') > 0`, which matches
+   symmetrically in the reference and in any candidate stream (a fresh candidate
+   has a real machine name, not NULs). The signature is deliberately narrow: the
+   legitimate `... ON 32-BIT WORD MACHINE` warning has no `BY ` and is therefore
+   **not** skipped and **still compared**.
+3. A `NUL` that **survives every volatile skip** still raises a hard error
+   (`IERR = 1` ⇒ `IRET = 1`), so genuine embedded binary in an unexpected line is
+   never silently accepted.
+
+**Verified.** `t01231a.out` compared against itself yields `IRET = 0`,
+`NDIFF = 0` — it no longer hard-errors and matches its golden master — so the
+**full 132-deck sweep can pass**. As control cases, a clean deck compared against
+a *different* deck still reports `NDIFF > 0` (real differences detected), the
+`... ON 32-BIT WORD MACHINE` warning line is *not* skipped, and a synthetic
+non-provenance line containing a `NUL` is still rejected with `IRET = 1`.
+
+This is a property of the **shipped** golden masters, not a modernization defect;
+the comparator now handles it correctly without any approved exclusion, and no
+deck is removed from the all-132 gate.
 
 ---
 
